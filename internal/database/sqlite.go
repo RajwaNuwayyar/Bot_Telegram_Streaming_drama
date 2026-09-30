@@ -105,13 +105,13 @@ func (r *SQLiteRepo) seedVIPPlans() error {
 	}
 
 	plans := []VIPPlan{
-		{Name: "1 Hari Akses", DurationDays: 1, Price: 5000, Badge: "⚡ Trial", Description: "Akses kilat seluruh drama selama 24 jam"},
-		{Name: "3 Hari Nonton", DurationDays: 3, Price: 12000, Badge: "✨ Weekend", Description: "Cocok untuk marathon di akhir pekan"},
-		{Name: "7 Hari (1 Minggu)", DurationDays: 7, Price: 25000, Badge: "🎉 Mingguan", Description: "Akses VIP puas selama satu minggu"},
-		{Name: "15 Hari (2 Minggu)", DurationDays: 15, Price: 45000, Badge: "⭐ Setengah Bulan", Description: "Pilihan fleksibel dua minggu penuh"},
-		{Name: "30 Hari (1 Bulan)", DurationDays: 30, Price: 75000, Badge: "🔥 Best Seller", Description: "Paket paling diminati dan paling hemat"},
-		{Name: "90 Hari (3 Bulan)", DurationDays: 90, Price: 180000, Badge: "💎 3 Bulan", Description: "Bebas nonton sepuasnya selama 3 bulan"},
-		{Name: "365 Hari (1 Tahun)", DurationDays: 365, Price: 500000, Badge: "👑 Super VIP", Description: "Akses VIP eksklusif 1 tahun penuh tanpa batas"},
+		{Name: "VIP 1 Hari", DurationDays: 1, Price: 3000, Badge: "⚡ Trial", Description: "Akses kilat seluruh drama selama 24 jam"},
+		{Name: "VIP 3 Hari", DurationDays: 3, Price: 6000, Badge: "✨ Hemat", Description: "Cocok untuk marathon di akhir pekan (~Rp2.000/hari)"},
+		{Name: "VIP 7 Hari", DurationDays: 7, Price: 10000, Badge: "🎉 1 Minggu", Description: "Akses VIP puas selama satu minggu (~Rp1.429/hari)"},
+		{Name: "VIP 15 Hari", DurationDays: 15, Price: 20000, Badge: "⭐ 2 Minggu", Description: "Pilihan fleksibel dua minggu penuh (~Rp1.333/hari)"},
+		{Name: "VIP 30 Hari", DurationDays: 30, Price: 35000, Badge: "🔥 Best Seller", Description: "Paket paling diminati dan paling hemat (~Rp1.167/hari)"},
+		{Name: "VIP 90 Hari", DurationDays: 90, Price: 90000, Badge: "💎 3 Bulan", Description: "Bebas nonton sepuasnya selama 3 bulan (~Rp1.000/hari)"},
+		{Name: "VIP 365 Hari", DurationDays: 365, Price: 300000, Badge: "👑 Super VIP", Description: "Akses VIP eksklusif 1 tahun penuh tanpa batas (~Rp822/hari)"},
 	}
 
 	stmt, err := r.db.Prepare(`INSERT INTO vip_plans (name, duration_days, price, badge, description, is_active) VALUES (?, ?, ?, ?, ?, 1)`)
