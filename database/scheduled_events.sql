@@ -17,7 +17,10 @@ ON SCHEDULE EVERY 5 MINUTE
 STARTS CURRENT_TIMESTAMP
 DO
 BEGIN
-    -- Update vip_purchases ke 'expired' jika QRIS-nya sudah kadaluarsa
+    -- Update vip_purchases ke 'expired' jika QRIS-nya sudah kadaluarsa.
+    -- CATATAN: setting 'qris_payment_expiry_minutes' di app_settings dibaca oleh BOT
+    -- saat membuat transaksi QRIS (untuk mengisi qris_payments.expired_at).
+    -- Event ini tidak perlu membaca setting tersebut — cukup bandingkan expired_at vs NOW().
     UPDATE vip_purchases vp
     JOIN qris_payments qp ON qp.vip_purchase_id = vp.id
     SET vp.status = 'expired'

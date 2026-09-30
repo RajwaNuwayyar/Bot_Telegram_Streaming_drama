@@ -15,7 +15,7 @@ DELIMITER //
 CREATE FUNCTION fn_is_vip(p_user_id BIGINT UNSIGNED)
 RETURNS BOOLEAN
 READS SQL DATA
-DETERMINISTIC
+NOT DETERMINISTIC  -- Hasilnya bergantung pada NOW() dan data tabel, bukan deterministik
 COMMENT 'Cek apakah user sedang aktif VIP. Return TRUE/FALSE.'
 BEGIN
     DECLARE v_vip_until DATETIME;
@@ -71,7 +71,7 @@ CREATE PROCEDURE sp_can_watch(
 )
 READS SQL DATA
 COMMENT 'Cek akses user ke episode. Gunakan ini di bot dan Mini App.'
-BEGIN
+sp_block: BEGIN  -- [FIX Bug 1] Label dideklarasikan agar LEAVE sp_block valid
     DECLARE v_episode_number    INT UNSIGNED;
     DECLARE v_drama_id          BIGINT UNSIGNED;
     DECLARE v_free_count        INT UNSIGNED;
@@ -115,7 +115,9 @@ BEGIN
     WHERE id = p_user_id;
 
     -- User tidak ditemukan
-    IF v_user_vip_until IS NULL AND v_user_is_banned IS NULL THEN
+    -- Catatan: cek IS NULL pada keduanya karena user non-VIP memiliki vip_until = NULL,
+    -- namun is_banned tetap NOT NULL. Jika is_banned NULL berarti baris user memang tidak ada.
+    IF v_user_is_banned IS NULL THEN
         SET can_watch = FALSE;
         SET reason = 'user_not_found';
         LEAVE sp_block;
@@ -169,7 +171,7 @@ CREATE PROCEDURE sp_process_vip_payment(
     OUT p_message          VARCHAR(255)
 )
 COMMENT 'Proses pembayaran VIP berhasil: update status, VIP until, dan komisi affiliate.'
-BEGIN
+proc_end: BEGIN  -- [FIX Bug 2] Label dideklarasikan agar LEAVE proc_end valid
     DECLARE v_user_id           BIGINT UNSIGNED;
     DECLARE v_plan_id           INT UNSIGNED;
     DECLARE v_amount            DECIMAL(12,2);
@@ -325,12 +327,12 @@ CREATE PROCEDURE sp_reverse_affiliate_commission(
     OUT p_message         VARCHAR(255)
 )
 COMMENT 'Balik komisi affiliate saat transaksi VIP dibatalkan/refund.'
-BEGIN
-    DECLARE v_commission_id     BIGINT UNSIGNED;
-    DECLARE v_referrer_id       BIGINT UNSIGNED;
-    DECLARE v_commission_coin   BIGINT;
+proc_end: BEGIN  -- [FIX Bug 3] Label dideklarasikan agar LEAVE proc_end valid
+    DECLARE v_commission_id      BIGINT UNSIGNED;
+    DECLARE v_referrer_id        BIGINT UNSIGNED;
+    DECLARE v_commission_coin    BIGINT;
     DECLARE v_transaction_amount DECIMAL(12,2);
-    DECLARE v_status            VARCHAR(20);
+    DECLARE v_already_reversed   INT DEFAULT 0;  -- [FIX Inkonsistensi 1] ganti v_status dengan counter
 
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
@@ -341,9 +343,16 @@ BEGIN
 
     START TRANSACTION;
 
-    -- Ambil data komisi (hanya yang masih active)
-    SELECT id, referrer_user_id, commission_coin, transaction_amount, status
-    INTO v_commission_id, v_referrer_id, v_commission_coin, v_transaction_amount, v_status
+    -- [FIX Inkonsistensi 1] Cek dulu apakah ada komisi yang sudah reversed
+    -- (query terpisah agar v_already_reversed tidak NULL saat tidak ada baris)
+    SELECT COUNT(*) INTO v_already_reversed
+    FROM affiliate_commissions
+    WHERE vip_purchase_id = p_vip_purchase_id
+      AND status = 'reversed';
+
+    -- Ambil data komisi yang masih active
+    SELECT id, referrer_user_id, commission_coin, transaction_amount
+    INTO v_commission_id, v_referrer_id, v_commission_coin, v_transaction_amount
     FROM affiliate_commissions
     WHERE vip_purchase_id = p_vip_purchase_id
       AND status = 'active'
@@ -354,10 +363,11 @@ BEGIN
     IF v_commission_id IS NULL THEN
         ROLLBACK;
         SET p_success = FALSE;
-        IF v_status = 'reversed' THEN
+        -- [FIX] Sekarang v_already_reversed pasti terisi (bukan NULL)
+        IF v_already_reversed > 0 THEN
             SET p_message = 'Komisi untuk transaksi ini sudah pernah di-reverse sebelumnya.';
         ELSE
-            SET p_message = 'Tidak ada komisi aktif untuk transaksi VIP ini.';
+            SET p_message = 'Tidak ada komisi aktif untuk transaksi VIP ini (mungkin referral tidak ada).';
         END IF;
         LEAVE proc_end;
     END IF;
@@ -402,7 +412,7 @@ CREATE PROCEDURE sp_request_withdrawal(
     OUT p_message          VARCHAR(255)
 )
 COMMENT 'Ajukan penarikan saldo coin affiliate ke rekening/e-wallet.'
-BEGIN
+proc_end: BEGIN  -- [FIX Bug 4] Label dideklarasikan agar LEAVE proc_end valid
     DECLARE v_coin_balance      BIGINT;
     DECLARE v_coin_rate         INT;
     DECLARE v_min_withdrawal    DECIMAL(12,2);
