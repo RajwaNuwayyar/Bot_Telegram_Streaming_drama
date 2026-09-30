@@ -1,0 +1,15 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+dramabot
+
+# Database & Environment
+*.db
+*.db-journal
+.env
+
+# Go workspace & vendor
+vendor/
