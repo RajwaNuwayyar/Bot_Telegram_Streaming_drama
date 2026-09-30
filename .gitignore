@@ -13,3 +13,19 @@ dramabot
 
 # Go workspace & vendor
 vendor/
+
+# Laravel
+/web_laravel/vendor/
+/web_laravel/node_modules/
+/web_laravel/public/build/
+/web_laravel/.env
+/web_laravel/storage/*.key
+
+# Python
+/bot_python/.env
+/bot_python/__pycache__/
+/bot_python/venv/
+/bot_python/env/
+
+# OS
+.DS_Store
