@@ -8,23 +8,37 @@
             </div>
             <h1 class="text-xl font-bold tracking-wide">DramaStream <span class="text-[10px] text-accent tracking-widest uppercase align-top">MINI</span></h1>
         </div>
-        <div class="flex items-center gap-4">
-            <div class="flex items-center gap-1.5 bg-cardbg px-3 py-1.5 rounded-full border border-white/5">
-                <i class="fa-solid fa-coins text-yellow-500 text-sm"></i>
-                <span class="text-sm font-semibold text-accent">120</span>
-            </div>
-            <div class="w-8 h-8 rounded-full bg-cardbg border border-white/10 flex items-center justify-center text-textmuted">
+        <!-- Profile Button with Mini Popup -->
+        <div class="relative" id="profile-btn-wrapper">
+            <button id="profile-btn" onclick="toggleProfilePopup()" class="w-9 h-9 rounded-full bg-cardbg border border-white/10 flex items-center justify-center text-textmuted hover:border-accent/40 hover:text-white transition-all active:scale-95">
                 <i class="fa-regular fa-user text-sm"></i>
+            </button>
+
+            <!-- Mini Popup -->
+            <div id="profile-popup" class="hidden absolute right-0 top-11 w-48 bg-[#141C2B] border border-white/10 rounded-2xl shadow-xl overflow-hidden z-50">
+                <div class="px-4 py-3 border-b border-white/5">
+                    <p id="popup-username" class="text-sm font-bold text-white truncate">DramaFan99</p>
+                    <p id="popup-handle" class="text-[11px] text-textmuted truncate">@dramafan99</p>
+                </div>
+                <a href="?page=profile" class="flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors">
+                    <i class="fa-regular fa-user text-accent text-sm w-4 text-center"></i>
+                    <span data-i18n="view_profile" class="text-sm text-white">Lihat Profil</span>
+                </a>
+                <a href="?page=vip" class="flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors">
+                    <i class="fa-solid fa-crown text-accent text-sm w-4 text-center"></i>
+                    <span data-i18n="manage_vip" class="text-sm text-white">Kelola VIP</span>
+                </a>
             </div>
         </div>
     </div>
+
 
     <!-- Search Bar -->
     <div class="relative mb-3">
         <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
             <i class="fa-solid fa-magnifying-glass text-textmuted text-sm"></i>
         </div>
-        <input type="text" class="w-full bg-cardbg border border-white/5 rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder-textmuted focus:outline-none focus:border-accent/50 transition-colors" placeholder="Search dramas...">
+        <input type="text" data-i18n-placeholder="search_placeholder" class="w-full bg-cardbg border border-white/5 rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder-textmuted focus:outline-none focus:border-accent/50 transition-colors" placeholder="Search dramas...">
     </div>
 
     <!-- Request Drama Prompt -->
@@ -34,22 +48,22 @@
                 <i class="fa-solid fa-pen-to-square text-xs"></i>
             </div>
             <div>
-                <p class="text-xs text-white font-semibold">Can't find your drama?</p>
-                <p class="text-[10px] text-accent">Admin will upload it for you!</p>
+                <p data-i18n="cant_find_drama" class="text-xs text-white font-semibold">Can't find your drama?</p>
+                <p data-i18n="admin_upload" class="text-[10px] text-accent">Admin will upload it for you!</p>
             </div>
         </div>
-        <a href="?page=request" class="px-3 py-1.5 bg-accent text-darkbg text-[10px] font-bold uppercase tracking-wider rounded-lg shadow-sm">
+        <a href="?page=request" data-i18n="request_btn" class="px-3 py-1.5 bg-accent text-darkbg text-[10px] font-bold uppercase tracking-wider rounded-lg shadow-sm">
             Request
         </a>
     </div>
 
     <!-- Genre Pills -->
     <div class="flex overflow-x-auto gap-3 pb-2 mb-6 hide-scroll">
-        <button class="whitespace-nowrap px-5 py-2 rounded-full bg-accent text-darkbg font-semibold text-sm">All</button>
-        <button class="whitespace-nowrap px-5 py-2 rounded-full bg-cardbg border border-white/5 text-textmuted text-sm hover:text-white transition-colors">Romance</button>
-        <button class="whitespace-nowrap px-5 py-2 rounded-full bg-cardbg border border-white/5 text-textmuted text-sm hover:text-white transition-colors">Thriller</button>
-        <button class="whitespace-nowrap px-5 py-2 rounded-full bg-cardbg border border-white/5 text-textmuted text-sm hover:text-white transition-colors">Drama</button>
-        <button class="whitespace-nowrap px-5 py-2 rounded-full bg-cardbg border border-white/5 text-textmuted text-sm hover:text-white transition-colors">Fantasy</button>
+        <button data-i18n="genre_all" class="whitespace-nowrap px-5 py-2 rounded-full bg-accent text-darkbg font-semibold text-sm">All</button>
+        <button data-i18n="genre_romance" class="whitespace-nowrap px-5 py-2 rounded-full bg-cardbg border border-white/5 text-textmuted text-sm hover:text-white transition-colors">Romance</button>
+        <button data-i18n="genre_thriller" class="whitespace-nowrap px-5 py-2 rounded-full bg-cardbg border border-white/5 text-textmuted text-sm hover:text-white transition-colors">Thriller</button>
+        <button data-i18n="genre_drama" class="whitespace-nowrap px-5 py-2 rounded-full bg-cardbg border border-white/5 text-textmuted text-sm hover:text-white transition-colors">Drama</button>
+        <button data-i18n="genre_fantasy" class="whitespace-nowrap px-5 py-2 rounded-full bg-cardbg border border-white/5 text-textmuted text-sm hover:text-white transition-colors">Fantasy</button>
     </div>
 
     <!-- Featured Banners -->
@@ -61,7 +75,7 @@
                 <p class="text-[10px] tracking-widest uppercase text-center w-2/3">Secret Love Featured Banner</p>
             </div>
             <div class="relative z-10">
-                <span class="inline-block px-2 py-0.5 rounded text-[9px] font-bold tracking-wider bg-accent/20 text-accent uppercase mb-2 border border-accent/20">Romance</span>
+                <span data-i18n="genre_romance" class="inline-block px-2 py-0.5 rounded text-[9px] font-bold tracking-wider bg-accent/20 text-accent uppercase mb-2 border border-accent/20">Romance</span>
                 <h3 class="font-bold text-lg mb-1 drop-shadow-md">Secret Love</h3>
                 <div class="flex items-center gap-2 text-xs text-textmuted">
                     <span>24 eps</span>
@@ -80,7 +94,7 @@
                 <p class="text-[10px] tracking-widest uppercase text-center w-2/3">Dark Throne Featured Banner</p>
             </div>
             <div class="relative z-10">
-                <span class="inline-block px-2 py-0.5 rounded text-[9px] font-bold tracking-wider bg-accent/20 text-accent uppercase mb-2 border border-accent/20">Thriller</span>
+                <span data-i18n="genre_thriller" class="inline-block px-2 py-0.5 rounded text-[9px] font-bold tracking-wider bg-accent/20 text-accent uppercase mb-2 border border-accent/20">Thriller</span>
                 <h3 class="font-bold text-lg mb-1 drop-shadow-md">Dark Throne</h3>
                 <div class="flex items-center gap-2 text-xs text-textmuted">
                     <span>18 eps</span>
@@ -94,8 +108,8 @@
 
     <!-- Trending Now -->
     <div class="flex justify-between items-end mb-4">
-        <h2 class="text-lg font-bold">Trending Now</h2>
-        <a href="#" class="text-xs text-accent font-medium hover:underline">See all <i class="fa-solid fa-arrow-right text-[10px] ml-0.5"></i></a>
+        <h2 data-i18n="trending_now" class="text-lg font-bold">Trending Now</h2>
+        <a href="#" class="text-xs text-accent font-medium hover:underline"><span data-i18n="see_all">See all</span> <i class="fa-solid fa-arrow-right text-[10px] ml-0.5"></i></a>
     </div>
 
     <div class="grid grid-cols-2 gap-4">

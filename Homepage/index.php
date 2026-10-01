@@ -15,6 +15,8 @@ if (!in_array($page, $allowed_pages)) {
     <title>DramaStream Mini App</title>
     <!-- Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- i18n Translation Script -->
+    <script src="js/i18n.js"></script>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts -->
@@ -99,17 +101,40 @@ if (!in_array($page, $allowed_pages)) {
             };
         }
 
-        // Tampilkan User Name di Profile jika elemennya ada
+        // Toggle mini popup profil
+        function toggleProfilePopup() {
+            const popup = document.getElementById('profile-popup');
+            if (popup) popup.classList.toggle('hidden');
+        }
+
+        // Tutup popup jika klik di luar
+        document.addEventListener('click', function(e) {
+            const wrapper = document.getElementById('profile-btn-wrapper');
+            if (wrapper && !wrapper.contains(e.target)) {
+                const popup = document.getElementById('profile-popup');
+                if (popup) popup.classList.add('hidden');
+            }
+        });
+
+        // Tampilkan User Name di Profile & Popup jika elemennya ada
         document.addEventListener('DOMContentLoaded', () => {
             const user = getTelegramUser();
             const usernameElem = document.getElementById('tg-username');
             const handleElem = document.getElementById('tg-handle');
-            
+            const popupUsername = document.getElementById('popup-username');
+            const popupHandle = document.getElementById('popup-handle');
+
             if (usernameElem && user) {
                 usernameElem.textContent = user.first_name || user.username;
             }
             if (handleElem && user && user.username) {
                 handleElem.textContent = '@' + user.username;
+            }
+            if (popupUsername && user) {
+                popupUsername.textContent = user.first_name || user.username;
+            }
+            if (popupHandle && user && user.username) {
+                popupHandle.textContent = '@' + user.username;
             }
         });
     </script>
