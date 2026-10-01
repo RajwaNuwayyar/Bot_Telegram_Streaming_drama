@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/../database/koneksi.php';
+
 // Routing sederhana
 $page = isset($_GET['page']) ? $_GET['page'] : 'home';
 $allowed_pages = ['home', 'history', 'vip', 'profile', 'affiliate', 'request'];
