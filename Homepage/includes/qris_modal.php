@@ -158,6 +158,20 @@ let currentPlanName = '';
 let currentPlanPrice = 0;
 let currentDurationDays = 30;
 
+function processPayment(planId, amount) {
+    const plans = {
+        1: { name: 'VIP 1 Hari', price: 3000, days: 1 },
+        2: { name: 'VIP 3 Hari', price: 6000, days: 3 },
+        3: { name: 'VIP 7 Hari', price: 10000, days: 7 },
+        4: { name: 'VIP 15 Hari', price: 20000, days: 15 },
+        5: { name: 'VIP 30 Hari', price: 35000, days: 30 },
+        6: { name: 'VIP 90 Hari', price: 90000, days: 90 },
+        7: { name: 'VIP 365 Hari', price: 300000, days: 365 }
+    };
+    const p = plans[planId] || { name: 'VIP Plan', price: amount || 35000, days: 30 };
+    openQrisModal(p.name, p.price, planId, p.days);
+}
+
 function openQrisModal(planName, price, planId, durationDays = 30) {
     currentPlanName = planName;
     currentPlanPrice = price;
