@@ -50,7 +50,7 @@
     <div class="flex flex-col gap-3 pb-8">
 
         <!-- VIP 1 Hari -->
-        <div class="bg-cardbg border border-white/5 rounded-2xl p-4 flex justify-between items-center cursor-pointer transition-all hover:border-accent/40 hover:shadow-[0_0_10px_rgba(0,208,182,0.08)] active:scale-[0.98]">
+        <div onclick="openQrisModal('VIP 1 Hari', 3000, 1, 1)" class="bg-cardbg border border-white/5 rounded-2xl p-4 flex justify-between items-center cursor-pointer transition-all hover:border-accent/40 hover:shadow-[0_0_10px_rgba(0,208,182,0.08)] active:scale-[0.98]">
             <div>
                 <h4 data-i18n="plan_1d" class="font-bold text-base mb-0.5">VIP 1 Day</h4>
                 <p data-i18n="plan_1d_desc" class="text-xs text-textmuted">Full access for 1 day</p>
@@ -62,7 +62,7 @@
         </div>
 
         <!-- VIP 3 Hari -->
-        <div class="bg-cardbg border border-white/5 rounded-2xl p-4 flex justify-between items-center cursor-pointer transition-all hover:border-accent/40 hover:shadow-[0_0_10px_rgba(0,208,182,0.08)] active:scale-[0.98]">
+        <div onclick="openQrisModal('VIP 3 Hari', 6000, 2, 3)" class="bg-cardbg border border-white/5 rounded-2xl p-4 flex justify-between items-center cursor-pointer transition-all hover:border-accent/40 hover:shadow-[0_0_10px_rgba(0,208,182,0.08)] active:scale-[0.98]">
             <div>
                 <h4 data-i18n="plan_3d" class="font-bold text-base mb-0.5">VIP 3 Days</h4>
                 <p class="text-xs text-textmuted">~Rp 2.000/day</p>
@@ -74,7 +74,7 @@
         </div>
 
         <!-- VIP 7 Hari -->
-        <div class="bg-cardbg border border-white/5 rounded-2xl p-4 flex justify-between items-center cursor-pointer transition-all hover:border-accent/40 hover:shadow-[0_0_10px_rgba(0,208,182,0.08)] active:scale-[0.98]">
+        <div onclick="openQrisModal('VIP 7 Hari', 10000, 3, 7)" class="bg-cardbg border border-white/5 rounded-2xl p-4 flex justify-between items-center cursor-pointer transition-all hover:border-accent/40 hover:shadow-[0_0_10px_rgba(0,208,182,0.08)] active:scale-[0.98]">
             <div>
                 <h4 data-i18n="plan_7d" class="font-bold text-base mb-0.5">VIP 7 Days</h4>
                 <p class="text-xs text-textmuted">~Rp 1.429/day</p>
@@ -86,7 +86,7 @@
         </div>
 
         <!-- VIP 15 Hari -->
-        <div class="bg-cardbg border border-white/5 rounded-2xl p-4 flex justify-between items-center cursor-pointer transition-all hover:border-accent/40 hover:shadow-[0_0_10px_rgba(0,208,182,0.08)] active:scale-[0.98]">
+        <div onclick="openQrisModal('VIP 15 Hari', 20000, 4, 15)" class="bg-cardbg border border-white/5 rounded-2xl p-4 flex justify-between items-center cursor-pointer transition-all hover:border-accent/40 hover:shadow-[0_0_10px_rgba(0,208,182,0.08)] active:scale-[0.98]">
             <div>
                 <h4 data-i18n="plan_15d" class="font-bold text-base mb-0.5">VIP 15 Days</h4>
                 <p class="text-xs text-textmuted">~Rp 1.333/day</p>
@@ -98,7 +98,7 @@
         </div>
 
         <!-- VIP 30 Hari (Best Value) -->
-        <div class="bg-cardbg border border-accent rounded-2xl p-4 flex justify-between items-center cursor-pointer relative shadow-[0_0_15px_rgba(0,208,182,0.1)] active:scale-[0.98]">
+        <div onclick="openQrisModal('VIP 30 Hari', 35000, 5, 30)" class="bg-cardbg border border-accent rounded-2xl p-4 flex justify-between items-center cursor-pointer relative shadow-[0_0_15px_rgba(0,208,182,0.1)] active:scale-[0.98]">
             <div data-i18n="best_value" class="absolute -top-2.5 right-6 bg-accent text-darkbg text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded shadow-sm">
                 BEST VALUE
             </div>
@@ -113,7 +113,7 @@
         </div>
 
         <!-- VIP 90 Hari -->
-        <div class="bg-cardbg border border-white/5 rounded-2xl p-4 flex justify-between items-center cursor-pointer relative transition-all hover:border-accent/40 hover:shadow-[0_0_10px_rgba(0,208,182,0.08)] active:scale-[0.98]">
+        <div onclick="openQrisModal('VIP 90 Hari', 90000, 6, 90)" class="bg-cardbg border border-white/5 rounded-2xl p-4 flex justify-between items-center cursor-pointer relative transition-all hover:border-accent/40 hover:shadow-[0_0_10px_rgba(0,208,182,0.08)] active:scale-[0.98]">
             <div data-i18n="save_tag" class="absolute -top-2.5 right-6 bg-accent/80 text-darkbg text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded shadow-sm">
                 SAVINGS
             </div>
@@ -128,7 +128,7 @@
         </div>
 
         <!-- VIP 365 Hari -->
-        <div class="bg-cardbg border border-white/5 rounded-2xl p-4 flex justify-between items-center cursor-pointer relative transition-all hover:border-accent/40 hover:shadow-[0_0_10px_rgba(0,208,182,0.08)] active:scale-[0.98]">
+        <div onclick="openQrisModal('VIP 365 Hari', 300000, 7, 365)" class="bg-cardbg border border-white/5 rounded-2xl p-4 flex justify-between items-center cursor-pointer relative transition-all hover:border-accent/40 hover:shadow-[0_0_10px_rgba(0,208,182,0.08)] active:scale-[0.98]">
             <div data-i18n="save_33" class="absolute -top-2.5 right-6 bg-yellow-500 text-darkbg text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded shadow-sm">
                 SAVE 33%
             </div>

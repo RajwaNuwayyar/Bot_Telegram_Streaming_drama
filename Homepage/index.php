@@ -78,6 +78,9 @@ if (!in_array($page, $allowed_pages)) {
     <!-- Bottom Navigation -->
     <?php include "includes/nav.php"; ?>
 
+    <!-- QRIS Checkout Modal -->
+    <?php include "includes/qris_modal.php"; ?>
+
     <!-- Telegram Init Script -->
     <script>
         // Inisialisasi Telegram Web App
