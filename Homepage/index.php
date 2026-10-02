@@ -1,4 +1,8 @@
 <?php
+session_start();
+require_once __DIR__ . '/../database/koneksi.php';
+require_once __DIR__ . '/includes/db_queries.php';
+
 // Routing sederhana
 $page = isset($_GET['page']) ? $_GET['page'] : 'home';
 $allowed_pages = ['home', 'history', 'vip', 'profile', 'affiliate', 'request'];
@@ -139,7 +143,27 @@ if (!in_array($page, $allowed_pages)) {
             if (popupHandle && user && user.username) {
                 popupHandle.textContent = '@' + user.username;
             }
+
+            // Sync user data to DB
+            if (user) {
+                fetch('api/user_sync.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(user)
+                })
+                .then(response => response.json())
+                .then(data => console.log('User synced:', data))
+                .catch(error => console.error('Error syncing user:', error));
+            }
         });
+
+        // Fungsi untuk mengarahkan pengguna ke halaman pembayaran (request QRIS)
+        function processPayment(planId, amount) {
+            const user = getTelegramUser();
+            // Buat URL ke script pembayaran di folder payment (amount tidak dikirim via URL demi keamanan)
+            const url = `../payment/request_qris.php?tg_user_id=${user.id}&username=${user.username || ''}&first_name=${user.first_name || 'User'}&plan_id=${planId}`;
+            window.location.href = url;
+        }
     </script>
 </body>
 </html>

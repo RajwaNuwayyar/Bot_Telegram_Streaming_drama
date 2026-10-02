@@ -113,37 +113,46 @@
     </div>
 
     <div class="grid grid-cols-2 gap-4">
-        <!-- Item 1 -->
-        <div class="flex flex-col gap-2 cursor-pointer">
-            <div class="w-full aspect-[3/4] rounded-xl bg-cardbg border border-white/5 flex flex-col items-center justify-center opacity-70 hover:opacity-100 transition-opacity relative overflow-hidden">
-                <i class="fa-regular fa-image text-2xl mb-2 text-textmuted"></i>
-                <p class="text-[9px] tracking-widest uppercase text-textmuted text-center">My CEO Husband</p>
-            </div>
-            <div>
-                <h4 class="font-bold text-sm leading-tight mb-0.5 line-clamp-1">My CEO Husband</h4>
-                <p class="text-xs text-textmuted">Romance • 32 eps</p>
-            </div>
-        </div>
-        
-        <!-- Item 2 -->
-        <div class="flex flex-col gap-2 cursor-pointer">
-            <div class="w-full aspect-[3/4] rounded-xl bg-cardbg border border-white/5 flex flex-col items-center justify-center opacity-70 hover:opacity-100 transition-opacity relative overflow-hidden">
-                <i class="fa-regular fa-image text-2xl mb-2 text-textmuted"></i>
-                <p class="text-[9px] tracking-widest uppercase text-textmuted text-center">Revenge Plan</p>
-            </div>
-            <div>
-                <h4 class="font-bold text-sm leading-tight mb-0.5 line-clamp-1">Revenge Plan</h4>
-                <p class="text-xs text-textmuted">Drama • 20 eps</p>
-            </div>
-        </div>
-
-         <!-- Item 3 -->
-         <div class="flex flex-col gap-2 cursor-pointer">
-            <div class="w-full aspect-[3/4] rounded-xl bg-cardbg border border-white/5"></div>
-        </div>
-        <!-- Item 4 -->
-        <div class="flex flex-col gap-2 cursor-pointer">
-            <div class="w-full aspect-[3/4] rounded-xl bg-cardbg border border-white/5"></div>
-        </div>
+        <?php
+        // Ambil data drama dari fungsi getDramas
+        $dramas = getDramas($pdo, 4);
+        if (empty($dramas)) {
+            // Tampilkan placeholder jika kosong
+            for ($i = 0; $i < 4; $i++) {
+                echo '<div class="flex flex-col gap-2 cursor-pointer">';
+                echo '<div class="w-full aspect-[3/4] rounded-xl bg-cardbg border border-white/5 flex flex-col items-center justify-center text-textmuted"><i class="fa-regular fa-image text-2xl mb-2"></i><p class="text-[9px] tracking-widest uppercase text-center mt-2 px-2">Data Belum Ada</p></div>';
+                echo '</div>';
+            }
+        } else {
+            foreach ($dramas as $d) {
+                // Gunakan api proxy untuk render poster jika file_id tersedia
+                $poster_url = $d['poster_url'] ? "api/poster.php?fid=" . urlencode($d['poster_url']) : "";
+                
+                // Prioritaskan ID episode pertama untuk langsung ditonton, jika tidak ada fallback ke ID drama (untuk dihandle bot)
+                $watch_id = $d['first_episode_id'] ? $d['first_episode_id'] : $d['id'];
+                
+                // Gunakan nama bot dari konfigurasi
+                $bot_username = "TreadLessBot";
+                $link = "https://t.me/{$bot_username}?start=watch_{$watch_id}";
+                
+                echo '<div class="flex flex-col gap-2 cursor-pointer" onclick="window.Telegram.WebApp.openTelegramLink(\'' . $link . '\')">';
+                
+                if ($poster_url) {
+                    echo '<div class="w-full aspect-[3/4] rounded-xl bg-cardbg border border-white/5 flex flex-col items-center justify-center opacity-70 hover:opacity-100 transition-opacity relative overflow-hidden bg-cover bg-center" style="background-image: url(\''.$poster_url.'\');"></div>';
+                } else {
+                    echo '<div class="w-full aspect-[3/4] rounded-xl bg-cardbg border border-white/5 flex flex-col items-center justify-center opacity-70 hover:opacity-100 transition-opacity relative overflow-hidden">';
+                    echo '<i class="fa-regular fa-image text-2xl mb-2 text-textmuted"></i>';
+                    echo '<p class="text-[9px] tracking-widest uppercase text-textmuted text-center px-1">' . htmlspecialchars($d['title']) . '</p>';
+                    echo '</div>';
+                }
+                
+                echo '<div>';
+                echo '<h4 class="font-bold text-sm leading-tight mb-0.5 line-clamp-1">' . htmlspecialchars($d['title']) . '</h4>';
+                echo '<p class="text-xs text-textmuted">Drama • ' . $d['total_episodes'] . ' eps</p>';
+                echo '</div>';
+                echo '</div>';
+            }
+        }
+        ?>
     </div>
 </div>

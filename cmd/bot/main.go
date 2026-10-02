@@ -21,12 +21,12 @@ func main() {
 	// 1. Muat Konfigurasi
 	cfg := config.LoadConfig()
 
-	// 2. Inisialisasi Database (SQLite dengan 7 VIP plans seed)
-	repo, err := database.NewSQLiteRepo(cfg.DatabasePath)
+	// 2. Inisialisasi Database MySQL (dengan 7 VIP plans seed)
+	repo, err := database.NewMySQLRepo(cfg.DatabaseDSN)
 	if err != nil {
 		log.Fatalf("❌ Gagal inisialisasi database: %v\n", err)
 	}
-	log.Printf("✅ Database SQLite berhasil dimuat di: %s\n", cfg.DatabasePath)
+	log.Printf("✅ Database MySQL berhasil dimuat\n")
 
 	// 3. Inisialisasi Layanan Payment Coordinator (QRIS)
 	payCoordinator := payment.NewPaymentCoordinator("", "")

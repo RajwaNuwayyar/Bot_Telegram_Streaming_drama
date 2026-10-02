@@ -17,6 +17,7 @@ type Config struct {
 	AdminUserID       int64
 	ServerPort        string
 	DatabasePath      string
+	DatabaseDSN       string
 	PaymentWebhookURL string
 }
 
@@ -38,6 +39,7 @@ func LoadConfig() *Config {
 		AdminUserID:       adminID,
 		ServerPort:        getEnv("SERVER_PORT", "8080"),
 		DatabasePath:      getEnv("DATABASE_PATH", "dramabot.db"),
+		DatabaseDSN:       getEnv("DATABASE_DSN", "root:@tcp(localhost:3306)/bot_drama?parseTime=true&charset=utf8mb4"),
 		PaymentWebhookURL: getEnv("PAYMENT_WEBHOOK_URL", "http://localhost:8080/api/payment/webhook"),
 	}
 
