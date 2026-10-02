@@ -10,7 +10,7 @@ dramabot
 *.db
 *.db-journal
 .env
-/payment/midtrans_config.php
+
 
 # Go workspace & vendor
 vendor/

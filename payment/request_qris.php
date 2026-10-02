@@ -5,20 +5,39 @@ require_once 'midtrans_config.php'; // Include config untuk mengambil Server Key
 // Gunakan key dari config file
 $serverKey = $midtrans_server_key;
 
-// Contoh data simulasi yang akan membeli VIP
-$user_id = 1; // ID User di tabel users
-$plan_id = 1; // ID Paket VIP di tabel vip_plans
-$amount = 3000; // Harga VIP 1 Hari (Sesuai seed_data.sql)
+// Tangkap data dari URL (GET) yang dikirim oleh Frontend
+$tg_user_id = isset($_GET['tg_user_id']) ? $_GET['tg_user_id'] : 123456789;
+$username = isset($_GET['username']) ? $_GET['username'] : 'dummy_user';
+$first_name = isset($_GET['first_name']) ? $_GET['first_name'] : 'User';
+
+$plan_id = isset($_GET['plan_id']) ? (int)$_GET['plan_id'] : 1;
 
 try {
-    // === TAMBAHAN BARU: Auto-create Dummy User jika belum ada ===
-    $cekUser = $pdo->prepare("SELECT id FROM users WHERE id = ?");
-    $cekUser->execute([$user_id]);
-    if (!$cekUser->fetch()) {
-        $buatUser = $pdo->prepare("INSERT INTO users (id, telegram_user_id, username, first_name) VALUES (?, 123456789, 'dummy_user', 'User')");
-        $buatUser->execute([$user_id]);
+    // KEAMANAN: Ambil harga ASLI dari database berdasarkan plan_id
+    $cekPlan = $pdo->prepare("SELECT price FROM vip_plans WHERE id = ?");
+    $cekPlan->execute([$plan_id]);
+    $planData = $cekPlan->fetch(PDO::FETCH_ASSOC);
+
+    if (!$planData) {
+        die("Error: Paket VIP tidak valid atau tidak ditemukan.");
     }
-    // ============================================================
+    
+    // Gunakan harga dari database, BUKAN dari input user (URL)
+    $amount = (int)$planData['price'];
+
+    // Cari user berdasarkan tg_user_id
+    $cekUser = $pdo->prepare("SELECT id FROM users WHERE telegram_user_id = ?");
+    $cekUser->execute([$tg_user_id]);
+    $user = $cekUser->fetch(PDO::FETCH_ASSOC);
+
+    if ($user) {
+        $user_id = $user['id']; // Ambil ID internal tabel users
+    } else {
+        // Auto-create user jika belum ada di database
+        $buatUser = $pdo->prepare("INSERT INTO users (telegram_user_id, username, first_name) VALUES (?, ?, ?)");
+        $buatUser->execute([$tg_user_id, $username, $first_name]);
+        $user_id = $pdo->lastInsertId();
+    }
 
     // Memulai Transaksi Database
     $pdo->beginTransaction();
