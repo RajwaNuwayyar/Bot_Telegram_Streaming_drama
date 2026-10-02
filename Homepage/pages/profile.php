@@ -1,3 +1,21 @@
+<?php
+$telegram_user_id = isset($_SESSION['telegram_user_id']) ? $_SESSION['telegram_user_id'] : null;
+$user = null;
+$stats = ['watched' => 0, 'completed' => 0];
+$is_vip = false;
+$vip_expiry = "None";
+
+if ($telegram_user_id) {
+    $user = getUserByTelegramId($pdo, $telegram_user_id);
+    if ($user) {
+        $stats = getUserStats($pdo, $user['id']);
+        if ($user['vip_until'] && strtotime($user['vip_until']) > time()) {
+            $is_vip = true;
+            $vip_expiry = date('M d, Y', strtotime($user['vip_until']));
+        }
+    }
+}
+?>
 <!-- Profile View -->
 <div class="px-5 pt-6 pb-4">
     <!-- Header -->
@@ -19,13 +37,19 @@
             <i class="fa-regular fa-user"></i>
         </div>
         <div class="flex-1 min-w-0">
-            <h2 id="tg-username" class="text-lg font-bold truncate mb-1 text-white">DramaFan99</h2>
-            <p class="text-[11px] text-textmuted mb-2 truncate"><span id="tg-handle">@dramafan99</span> • <span data-i18n="joined">Joined</span> Sep 2024</p>
+            <h2 id="tg-username" class="text-lg font-bold truncate mb-1 text-white"><?php echo $user ? htmlspecialchars($user['first_name'] . ' ' . $user['last_name']) : 'Guest'; ?></h2>
+            <p class="text-[11px] text-textmuted mb-2 truncate"><span id="tg-handle"><?php echo $user && $user['username'] ? '@' . htmlspecialchars($user['username']) : ''; ?></span> • <span data-i18n="joined">Joined</span> <?php echo $user ? date('M Y', strtotime($user['created_at'])) : 'Now'; ?></p>
             <div class="flex items-center gap-2">
+                <?php if ($is_vip): ?>
                 <div class="bg-accent/20 border border-accent/30 text-accent px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
                     <i class="fa-solid fa-crown text-[8px]"></i> VIP
                 </div>
-                <span class="text-[10px] text-textmuted"><span data-i18n="expires">Expires</span> Dec 15, 2024</span>
+                <span class="text-[10px] text-textmuted"><span data-i18n="expires">Expires</span> <?php echo $vip_expiry; ?></span>
+                <?php else: ?>
+                <div class="bg-cardbg border border-white/10 text-textmuted px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                    Regular
+                </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -33,11 +57,11 @@
     <!-- Stats Grid -->
     <div class="grid grid-cols-2 gap-3 mb-6">
         <div class="bg-cardbg border border-white/5 rounded-2xl py-3 px-2 flex flex-col items-center justify-center">
-            <h3 class="text-xl font-bold text-white mb-1">47</h3>
+            <h3 class="text-xl font-bold text-white mb-1"><?php echo $stats['watched']; ?></h3>
             <p data-i18n="watched" class="text-[10px] text-textmuted">Watched</p>
         </div>
         <div class="bg-cardbg border border-white/5 rounded-2xl py-3 px-2 flex flex-col items-center justify-center">
-            <h3 class="text-xl font-bold text-white mb-1">23</h3>
+            <h3 class="text-xl font-bold text-white mb-1"><?php echo $stats['completed']; ?></h3>
             <p data-i18n="completed" class="text-[10px] text-textmuted">Completed</p>
         </div>
     </div>

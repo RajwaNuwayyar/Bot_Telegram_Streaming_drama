@@ -1,5 +1,7 @@
 <?php
+session_start();
 require_once __DIR__ . '/../database/koneksi.php';
+require_once __DIR__ . '/includes/db_queries.php';
 
 // Routing sederhana
 $page = isset($_GET['page']) ? $_GET['page'] : 'home';
@@ -137,6 +139,18 @@ if (!in_array($page, $allowed_pages)) {
             }
             if (popupHandle && user && user.username) {
                 popupHandle.textContent = '@' + user.username;
+            }
+
+            // Sync user data to DB
+            if (user) {
+                fetch('api/user_sync.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(user)
+                })
+                .then(response => response.json())
+                .then(data => console.log('User synced:', data))
+                .catch(error => console.error('Error syncing user:', error));
             }
         });
 
