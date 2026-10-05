@@ -58,7 +58,7 @@ $bot_username = "TreadLessBot";
         <?php if (!empty($historyItems)): ?>
             <?php foreach ($historyItems as $idx => $item): 
                 $status = $item['is_completed'] ? 'completed' : 'progress';
-                $poster = getPosterUrl($item['poster_url'], $idx);
+                $poster = getPosterUrl($item['poster_url'], $idx, $item['drama_title']);
                 $duration = max(1, (int)$item['duration_seconds']);
                 $progressSec = (int)$item['progress_seconds'];
                 
