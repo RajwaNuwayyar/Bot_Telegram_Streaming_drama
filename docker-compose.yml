@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  bot-app:
+    build: .
+    container_name: dramabot_app
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    volumes:
+      - bot_data:/app
+
+volumes:
+  bot_data:
