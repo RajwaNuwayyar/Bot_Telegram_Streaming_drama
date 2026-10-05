@@ -331,3 +331,36 @@ func (r *MySQLRepo) CancelTransaction(trxCode string) error {
     }
 	return nil
 }
+
+// UpdateEpisodeVIPByMessageID mengupdate kolom is_vip pada episode berdasarkan telegram_message_id.
+// Dipanggil saat admin mengedit caption postingan di channel (menambah/menghapus #vip).
+func (r *MySQLRepo) UpdateEpisodeVIPByMessageID(messageID int, isVIP bool) error {
+	vipVal := 0
+	if isVIP {
+		vipVal = 1
+	}
+	res, err := r.db.Exec(`UPDATE episodes SET is_vip = ? WHERE telegram_message_id = ?`, vipVal, messageID)
+	if err != nil {
+		return fmt.Errorf("gagal update is_vip: %w", err)
+	}
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("episode dengan message_id %d tidak ditemukan di database", messageID)
+	}
+	return nil
+}
+
+// DeleteEpisodeByMessageID menghapus episode dari database berdasarkan telegram_message_id.
+// Dipanggil saat admin menggunakan perintah /hapus_episode setelah menghapus video dari channel.
+func (r *MySQLRepo) DeleteEpisodeByMessageID(messageID int) error {
+	res, err := r.db.Exec(`DELETE FROM episodes WHERE telegram_message_id = ?`, messageID)
+	if err != nil {
+		return fmt.Errorf("gagal menghapus episode: %w", err)
+	}
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("episode dengan message_id %d tidak ditemukan di database", messageID)
+	}
+	return nil
+}
+

@@ -80,6 +80,63 @@ func (b *Bot) HandleChannelPost(post *tgbotapi.Message) {
 	}
 }
 
+// HandleEditedChannelPost menangani saat admin mengedit caption postingan di channel privat.
+// Contoh: admin menghapus "#vip" dari caption → episode diubah menjadi gratis di database.
+func (b *Bot) HandleEditedChannelPost(post *tgbotapi.Message) {
+	if post == nil || post.Video == nil {
+		return
+	}
+
+	caption := strings.TrimSpace(post.Caption)
+	messageID := post.MessageID
+
+	// Urai ulang caption yang sudah diedit
+	dramaTitle, epNum, isVIP := parseCaption(caption)
+
+	// Terapkan aturan default VIP yang sama seperti saat upload
+	if !strings.Contains(strings.ToLower(caption), "#free") && !strings.Contains(strings.ToLower(caption), "gratis") {
+		if strings.Contains(strings.ToLower(caption), "#vip") || strings.Contains(strings.ToLower(caption), "[vip]") || epNum > 2 {
+			isVIP = true
+		}
+	}
+
+	// Paksa gratis jika caption secara eksplisit mengandung #free (override aturan episode > 2)
+	if strings.Contains(strings.ToLower(caption), "#free") || strings.Contains(strings.ToLower(caption), "gratis") {
+		isVIP = false
+	}
+
+	log.Printf("[ChannelEdit] Deteksi edit caption MsgID %d: '%s' Ep %d → isVIP: %v\n",
+		messageID, dramaTitle, epNum, isVIP)
+
+	// Update status VIP episode di database berdasarkan message_id
+	if err := b.repo.UpdateEpisodeVIPByMessageID(messageID, isVIP); err != nil {
+		log.Printf("[ChannelEdit] Gagal update status VIP episode (MsgID %d): %v\n", messageID, err)
+		return
+	}
+
+	log.Printf("[ChannelEdit] Berhasil update episode MsgID %d → isVIP: %v\n", messageID, isVIP)
+
+	// Notifikasi ke admin
+	if b.cfg.AdminUserID != 0 {
+		vipStatusStr := "🟢 Gratis (Diperbarui)"
+		if isVIP {
+			vipStatusStr = "👑 VIP Only (Diperbarui)"
+		}
+		notifText := fmt.Sprintf(`✏️ *Update Caption Episode Terdeteksi!*
+━━━━━━━━━━━━━━━━━━━━
+🎬 *Judul:* %s
+🔢 *Episode:* %d
+🏷️ *Status Baru:* %s
+🆔 *Message ID:* %d
+💾 Database telah diperbarui sesuai caption terbaru.`,
+			dramaTitle, epNum, vipStatusStr, messageID)
+
+		notifMsg := tgbotapi.NewMessage(b.cfg.AdminUserID, notifText)
+		notifMsg.ParseMode = "Markdown"
+		_, _ = b.api.Send(notifMsg)
+	}
+}
+
 // parseCaption mengurai teks caption untuk mendapatkan Judul Drama dan Nomor Episode
 // Contoh pola yang didukung:
 // 1. "The Secret CEO - Episode 01"

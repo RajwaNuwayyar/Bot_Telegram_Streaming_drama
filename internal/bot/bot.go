@@ -46,9 +46,15 @@ func (b *Bot) Start() {
 	log.Println("[Bot] Mendengarkan update Telegram (Pesan, Channel Post, Callback)...")
 
 	for update := range updates {
-		// 1. Tangani postingan video di Channel Privat (Tugas: Listener Channel)
+		// 1. Tangani postingan video BARU di Channel Privat
 		if update.ChannelPost != nil {
 			go b.HandleChannelPost(update.ChannelPost)
+			continue
+		}
+
+		// 1b. Tangani EDIT postingan di Channel Privat (misal admin ubah/hapus #vip dari caption)
+		if update.EditedChannelPost != nil {
+			go b.HandleEditedChannelPost(update.EditedChannelPost)
 			continue
 		}
 

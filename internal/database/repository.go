@@ -19,6 +19,8 @@ type Repository interface {
 	GetEpisodeByID(id int64) (*Episode, error)
 	GetEpisodeByTitleAndNumber(title string, epNum int) (*Episode, error)
 	GetAdjacentEpisodes(title string, currentEpNum int) (prev *Episode, next *Episode, err error)
+	UpdateEpisodeVIPByMessageID(messageID int, isVIP bool) error  // Update status VIP saat caption diedit
+	DeleteEpisodeByMessageID(messageID int) error                  // Hapus episode saat video dihapus dari channel
 
 	// Transactions
 	CreateTransaction(tx *Transaction) error
