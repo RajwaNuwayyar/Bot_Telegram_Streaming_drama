@@ -157,13 +157,6 @@ if (!in_array($page, $allowed_pages)) {
             }
         });
 
-        // Fungsi untuk mengarahkan pengguna ke halaman pembayaran (request QRIS)
-        function processPayment(planId, amount) {
-            const user = getTelegramUser();
-            // Buat URL ke script pembayaran di folder payment (amount tidak dikirim via URL demi keamanan)
-            const url = `../payment/request_qris.php?tg_user_id=${user.id}&username=${user.username || ''}&first_name=${user.first_name || 'User'}&plan_id=${planId}`;
-            window.location.href = url;
-        }
     </script>
 </body>
 </html>

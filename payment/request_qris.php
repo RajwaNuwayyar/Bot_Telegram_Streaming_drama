@@ -95,23 +95,33 @@ try {
             // Simpan semua query
             $pdo->commit();
 
-            echo "<h2>Scan QR Code di bawah ini untuk membayar</h2>";
-            echo "<p>Order ID: <b>$order_id</b></p>";
-            echo "<p>Total Bayar: <b>Rp " . number_format($amount, 0, ',', '.') . "</b></p>";
-            echo "<img src='$qr_url' alt='QR Code' style='width:300px; height:300px;'>";
+            // Return JSON response untuk dibaca oleh frontend Javascript (Modal)
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => true,
+                'order_id' => $order_id,
+                'amount' => $amount,
+                'qr_url' => $qr_url
+            ]);
+            exit;
         } else {
             $pdo->rollBack();
-            echo "Gagal mendapatkan URL QR Code dari response Midtrans.";
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => 'Gagal mendapatkan URL QR Code dari response Midtrans.']);
+            exit;
         }
     } else {
         $pdo->rollBack();
-        echo "Midtrans API Error:<br><pre>" . print_r($result, true) . "</pre>";
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'message' => 'Midtrans API Error']);
+        exit;
     }
 } catch (Exception $e) {
-    // Jika ada yang error, batalkan semua query ke DB
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    die("Terjadi kesalahan: " . $e->getMessage());
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => 'Terjadi kesalahan: ' . $e->getMessage()]);
+    exit;
 }
 ?>

@@ -29,11 +29,10 @@
                 <span id="modal-plan-price" class="text-xl font-bold text-accent">Rp 35.000</span>
             </div>
 
-            <!-- Card QRIS Content (Kotak Putih Presisi 1:1 Mengikuti Ukuran QR) -->
+            <!-- Card QRIS Content -->
             <div class="flex justify-center mb-3">
                 <div class="bg-white rounded-3xl p-3 shadow-2xl border-2 border-accent/40 inline-flex justify-center items-center">
-                    <canvas id="qris-canvas" class="w-56 h-56 sm:w-60 sm:h-60 rounded-xl block"></canvas>
-                    <div id="qris-qrcode-js" class="hidden"></div>
+                    <img id="qris-image" src="" alt="Loading QR..." class="w-56 h-56 sm:w-60 sm:h-60 rounded-xl block object-cover">
                 </div>
             </div>
 
@@ -93,12 +92,6 @@
                 <button id="btn-check-status" onclick="checkQrisStatus()" class="w-full py-3 bg-accent hover:bg-accentdark text-darkbg font-bold rounded-xl text-sm transition-all shadow-[0_0_15px_rgba(0,208,182,0.3)] flex items-center justify-center gap-2 active:scale-[0.98]">
                     <i id="icon-check-status" class="fa-solid fa-arrows-rotate"></i>
                     <span>Cek Status Pembayaran</span>
-                </button>
-                
-                <!-- Dev Helper Simulation Button -->
-                <button onclick="simulateQrisPayment()" class="w-full py-2.5 bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/30 font-semibold rounded-xl text-xs transition-all flex items-center justify-center gap-1.5">
-                    <i class="fa-solid fa-wand-magic-sparkles text-purple-400"></i>
-                    <span>Simulasi Bayar Berhasil (Test Mode)</span>
                 </button>
             </div>
         </div>
@@ -160,38 +153,54 @@ let currentDurationDays = 30;
 
 function processPayment(planId, amount) {
     const plans = {
-        1: { name: 'VIP 1 Hari', price: 3000, days: 1 },
-        2: { name: 'VIP 3 Hari', price: 6000, days: 3 },
-        3: { name: 'VIP 7 Hari', price: 10000, days: 7 },
-        4: { name: 'VIP 15 Hari', price: 20000, days: 15 },
-        5: { name: 'VIP 30 Hari', price: 35000, days: 30 },
-        6: { name: 'VIP 90 Hari', price: 90000, days: 90 },
-        7: { name: 'VIP 365 Hari', price: 300000, days: 365 }
+        1: { name: 'VIP 1 Hari', days: 1 },
+        2: { name: 'VIP 3 Hari', days: 3 },
+        3: { name: 'VIP 7 Hari', days: 7 },
+        4: { name: 'VIP 15 Hari', days: 15 },
+        5: { name: 'VIP 30 Hari', days: 30 },
+        6: { name: 'VIP 90 Hari', days: 90 },
+        7: { name: 'VIP 365 Hari', days: 365 }
     };
-    const p = plans[planId] || { name: 'VIP Plan', price: amount || 35000, days: 30 };
-    openQrisModal(p.name, p.price, planId, p.days);
+    const p = plans[planId] || { name: 'VIP Plan', days: 30 };
+    
+    // Tampilkan loading state atau modal placeholder jika diinginkan
+    // (Bisa dikembangkan lebih lanjut)
+
+    const user = getTelegramUser();
+    const url = `../payment/request_qris.php?tg_user_id=${user.id}&username=${user.username || ''}&first_name=${user.first_name || 'User'}&plan_id=${planId}`;
+    
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                openQrisModal(p.name, data.amount, planId, p.days, data.order_id, data.qr_url);
+            } else {
+                alert('Gagal membuat pesanan QRIS: ' + data.message);
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Terjadi kesalahan jaringan.');
+        });
 }
 
-function openQrisModal(planName, price, planId, durationDays = 30) {
+function openQrisModal(planName, price, planId, durationDays, orderId, qrUrl) {
     currentPlanName = planName;
     currentPlanPrice = price;
     currentDurationDays = durationDays;
-    
-    // Generate Random TRX Code: TRX-XXXXXX
-    const randomHex = Math.floor(100000 + Math.random() * 900000);
-    currentTrxCode = 'TRX' + randomHex;
+    currentTrxCode = orderId;
 
     // Set UI Texts
     document.getElementById('modal-plan-name').textContent = planName;
     document.getElementById('modal-plan-price').textContent = 'Rp ' + Number(price).toLocaleString('id-ID');
     document.getElementById('modal-trx-code').textContent = currentTrxCode;
+    
+    // Set Image QR
+    document.getElementById('qris-image').src = qrUrl;
 
     // Reset Views
     document.getElementById('qris-checkout-view').classList.remove('hidden');
     document.getElementById('qris-success-view').classList.add('hidden');
-
-    // Draw QRIS Canvas
-    drawQrisCanvas('qris-canvas', currentTrxCode, price);
 
     // Start 15 Minute Countdown Timer
     startQrisTimer(15 * 60);
@@ -243,20 +252,25 @@ function checkQrisStatus() {
     icon.classList.add('fa-spin');
     btn.disabled = true;
 
-    // Simulate checking database/server backend
-    fetch('/api/health')
+    fetch('../payment/check_status.php?order_id=' + encodeURIComponent(currentTrxCode))
         .then(res => res.json())
-        .catch(() => ({}))
+        .then(data => {
+            if (data.success && data.status === 'paid') {
+                showSuccessPayment();
+            } else {
+                alert('Status: Belum Dibayar. Silakan selesaikan pembayaran lalu cek kembali.');
+            }
+        })
+        .catch(() => {
+            alert('Gagal mengecek status. Coba lagi.');
+        })
         .finally(() => {
-            setTimeout(() => {
-                icon.classList.remove('fa-spin');
-                btn.disabled = false;
-                alert('Pengecekan otomatis: Menunggu pembayaran masuk via QRIS...\n(Gunakan tombol "Simulasi Bayar" untuk pengujian instan)');
-            }, 800);
+            icon.classList.remove('fa-spin');
+            btn.disabled = false;
         });
 }
 
-function simulateQrisPayment() {
+function showSuccessPayment() {
     // Show success view inside modal
     document.getElementById('qris-checkout-view').classList.add('hidden');
     document.getElementById('qris-success-view').classList.remove('hidden');
@@ -280,117 +294,5 @@ function finishVipSuccess() {
     window.location.href = '?page=home';
 }
 
-/**
- * Custom QR Code Canvas Generator
- * Renders a crisp, realistic QRIS pattern on canvas
- */
-function drawQrisCanvas(canvasId, trxCode, price) {
-    const canvas = document.getElementById(canvasId);
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    
-    const size = 300;
-    canvas.width = size;
-    canvas.height = size;
-    
-    // Background White
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, size, size);
 
-    const matrixSize = 29; // 29x29 modules
-    const cellSize = size / matrixSize;
-
-    // Generate pseudo-random deterministic pattern based on TRX string
-    function hashSeed(str) {
-        let hash = 0;
-        for (let i = 0; i < str.length; i++) {
-            hash = (hash << 5) - hash + str.charCodeAt(i);
-            hash |= 0;
-        }
-        return Math.abs(hash);
-    }
-
-    const seed = hashSeed(trxCode + price);
-
-    // Helper to draw Finder Pattern (the 3 square corners)
-    function drawFinder(row, col) {
-        const x = col * cellSize;
-        const y = row * cellSize;
-        const width = 7 * cellSize;
-
-        // Outer black box
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(x, y, width, width);
-
-        // Inner white box
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(x + cellSize, y + cellSize, 5 * cellSize, 5 * cellSize);
-
-        // Center black box
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(x + 2 * cellSize, y + 2 * cellSize, 3 * cellSize, 3 * cellSize);
-    }
-
-    // Draw 3 Finder Patterns
-    drawFinder(1, 1);                  // Top-Left
-    drawFinder(1, matrixSize - 8);     // Top-Right
-    drawFinder(matrixSize - 8, 1);     // Bottom-Left
-
-    // Draw alignment pattern (bottom right)
-    function drawAlignment(row, col) {
-        const x = col * cellSize;
-        const y = row * cellSize;
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(x, y, 5 * cellSize, 5 * cellSize);
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(x + cellSize, y + cellSize, 3 * cellSize, 3 * cellSize);
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(x + 2 * cellSize, y + 2 * cellSize, cellSize, cellSize);
-    }
-    drawAlignment(matrixSize - 9, matrixSize - 9);
-
-    // Draw timing patterns
-    ctx.fillStyle = '#000000';
-    for (let i = 8; i < matrixSize - 8; i++) {
-        if (i % 2 === 0) {
-            ctx.fillRect(6 * cellSize, i * cellSize, cellSize, cellSize);
-            ctx.fillRect(i * cellSize, 6 * cellSize, cellSize, cellSize);
-        }
-    }
-
-    // Fill data modules
-    ctx.fillStyle = '#000000';
-    let moduleIndex = 0;
-    for (let r = 0; r < matrixSize; r++) {
-        for (let c = 0; c < matrixSize; c++) {
-            // Skip finder patterns
-            if ((r < 9 && c < 9) || (r < 9 && c > matrixSize - 10) || (r > matrixSize - 10 && c < 9)) continue;
-            // Skip alignment
-            if (r >= matrixSize - 10 && r <= matrixSize - 5 && c >= matrixSize - 10 && c <= matrixSize - 5) continue;
-            // Skip timing
-            if (r === 6 || c === 6) continue;
-
-            moduleIndex++;
-            const bit = (seed ^ (moduleIndex * 1337) ^ (r * 31 + c)) % 3 === 0;
-            if (bit) {
-                ctx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
-            }
-        }
-    }
-
-    // Add Center Logo / QRIS Icon badge
-    const logoSize = 60;
-    const logoX = (size - logoSize) / 2;
-    const logoY = (size - logoSize) / 2;
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(logoX - 4, logoY - 4, logoSize + 8, logoSize + 8);
-    ctx.fillStyle = '#E11D48'; // Red QRIS accent
-    ctx.fillRect(logoX, logoY, logoSize, logoSize);
-    
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 16px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('QRIS', size / 2, size / 2);
-}
 </script>
