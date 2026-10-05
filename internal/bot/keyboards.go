@@ -118,7 +118,7 @@ func VideoNavigationKeyboard(prevEp, nextEp *database.Episode, webAppURL string)
 	// Tombol kembali ke katalog / mini app
 	if webAppURL != "" {
 		rows = append(rows, tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonURL("🎬 Nonton Drama Lain di Mini App", webAppURL),
+			tgbotapi.NewInlineKeyboardButtonURL("📱 Pilih Episode Lain di Mini App", webAppURL),
 		))
 	}
 

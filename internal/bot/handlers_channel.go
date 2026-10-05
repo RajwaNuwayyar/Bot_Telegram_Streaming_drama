@@ -40,14 +40,13 @@ func (b *Bot) HandleChannelPost(post *tgbotapi.Message) {
 
 	// Urai judul drama, nomor episode/part, dan status VIP dari caption
 	dramaTitle, epNum, isVIP := parseCaption(caption)
+	_ = epNum // epNum digunakan untuk metadata, bukan penentu VIP otomatis
 
-	// Default penentuan VIP jika tidak ditulis spesifik di caption:
-	// Episode 1 dan 2 gratis untuk menarik penonton, episode 3 ke atas VIP
-	if !strings.Contains(strings.ToLower(caption), "#free") && !strings.Contains(strings.ToLower(caption), "gratis") {
-		if strings.Contains(strings.ToLower(caption), "#vip") || strings.Contains(strings.ToLower(caption), "[vip]") || epNum > 2 {
-			isVIP = true
-		}
-	}
+	// Episode hanya dikunci VIP jika caption SECARA EKSPLISIT mengandung tag #vip atau [vip].
+	// Tanpa tag tersebut, episode bebas ditonton semua pengguna (gratis).
+	isVIP = strings.Contains(strings.ToLower(caption), "#vip") ||
+		strings.Contains(strings.ToLower(caption), "[vip]") ||
+		strings.Contains(strings.ToLower(caption), "(vip)")
 
 	var thumbFileID string
 	if video.Thumbnail != nil {
@@ -120,19 +119,13 @@ func (b *Bot) HandleEditedChannelPost(post *tgbotapi.Message) {
 	messageID := post.MessageID
 
 	// Urai ulang caption yang sudah diedit
-	dramaTitle, epNum, isVIP := parseCaption(caption)
+	dramaTitle, epNum, _ := parseCaption(caption)
+	_ = epNum // epNum digunakan untuk metadata notifikasi
 
-	// Terapkan aturan default VIP yang sama seperti saat upload
-	if !strings.Contains(strings.ToLower(caption), "#free") && !strings.Contains(strings.ToLower(caption), "gratis") {
-		if strings.Contains(strings.ToLower(caption), "#vip") || strings.Contains(strings.ToLower(caption), "[vip]") || epNum > 2 {
-			isVIP = true
-		}
-	}
-
-	// Paksa gratis jika caption secara eksplisit mengandung #free (override aturan episode > 2)
-	if strings.Contains(strings.ToLower(caption), "#free") || strings.Contains(strings.ToLower(caption), "gratis") {
-		isVIP = false
-	}
+	// Episode hanya dikunci VIP jika caption SECARA EKSPLISIT mengandung tag #vip atau [vip].
+	isVIP := strings.Contains(strings.ToLower(caption), "#vip") ||
+		strings.Contains(strings.ToLower(caption), "[vip]") ||
+		strings.Contains(strings.ToLower(caption), "(vip)")
 
 	log.Printf("[ChannelEdit] Deteksi edit caption MsgID %d: '%s' Ep %d → isVIP: %v\n",
 		messageID, dramaTitle, epNum, isVIP)
