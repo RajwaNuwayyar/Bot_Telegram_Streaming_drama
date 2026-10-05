@@ -146,6 +146,7 @@
 
 <script>
 let qrisTimerInterval = null;
+let qrisPollingInterval = null;
 let currentTrxCode = '';
 let currentPlanName = '';
 let currentPlanPrice = 0;
@@ -214,6 +215,7 @@ function closeQrisModal() {
     const modal = document.getElementById('qris-modal');
     modal.classList.add('hidden');
     if (qrisTimerInterval) clearInterval(qrisTimerInterval);
+    if (qrisPollingInterval) clearInterval(qrisPollingInterval);
 }
 
 function copyTrxCode() {
@@ -243,30 +245,37 @@ function startQrisTimer(durationSeconds) {
     }
     updateDisplay();
     qrisTimerInterval = setInterval(updateDisplay, 1000);
+
+    // Mulai polling status tiap 5 detik
+    if (qrisPollingInterval) clearInterval(qrisPollingInterval);
+    qrisPollingInterval = setInterval(() => {
+        checkQrisStatus(true); // true = mode auto-polling
+    }, 5000);
 }
 
-function checkQrisStatus() {
+function checkQrisStatus(isAuto = false) {
     const btn = document.getElementById('btn-check-status');
     const icon = document.getElementById('icon-check-status');
     
     icon.classList.add('fa-spin');
-    btn.disabled = true;
+    if (!isAuto) btn.disabled = true;
 
     fetch('../payment/check_status.php?order_id=' + encodeURIComponent(currentTrxCode))
         .then(res => res.json())
         .then(data => {
-            if (data.success && data.status === 'paid') {
+            if (data.success && (data.status === 'paid' || data.status === 'success')) {
+                if (qrisPollingInterval) clearInterval(qrisPollingInterval);
                 showSuccessPayment();
             } else {
-                alert('Status: Belum Dibayar. Silakan selesaikan pembayaran lalu cek kembali.');
+                if (!isAuto) alert('Status: Belum Dibayar. Silakan selesaikan pembayaran lalu cek kembali.');
             }
         })
         .catch(() => {
-            alert('Gagal mengecek status. Coba lagi.');
+            if (!isAuto) alert('Gagal mengecek status. Coba lagi.');
         })
         .finally(() => {
             icon.classList.remove('fa-spin');
-            btn.disabled = false;
+            if (!isAuto) btn.disabled = false;
         });
 }
 

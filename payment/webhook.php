@@ -30,11 +30,19 @@ if ($result) {
         $pdo->beginTransaction();
 
         // Cari transaksi berdasarkan order_id Midtrans
-        $stmt = $pdo->prepare("SELECT vip_purchase_id FROM qris_payments WHERE gateway_ref_id = ?");
+        $stmt = $pdo->prepare("SELECT vip_purchase_id, gateway_status FROM qris_payments WHERE gateway_ref_id = ? FOR UPDATE");
         $stmt->execute([$order_id]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($row) {
+            // Cegah overwrite jika transaksi SUDAH sukses/paid
+            if (($row['gateway_status'] == 'success' || $row['gateway_status'] == 'paid') && $status_gateway == 'failed') {
+                $pdo->rollBack();
+                http_response_code(200);
+                echo "Transaksi sudah sukses sebelumnya, mengabaikan status failed/expire.";
+                exit;
+            }
+
             $vip_purchase_id = $row['vip_purchase_id'];
             $now = date('Y-m-d H:i:s');
 
