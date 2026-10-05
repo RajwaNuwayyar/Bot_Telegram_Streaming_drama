@@ -2,12 +2,18 @@
 // Proxy untuk mengambil file (poster) dari Telegram
 require_once __DIR__ . '/../../database/koneksi.php';
 
-$file_id = isset($_GET['fid']) ? $_GET['fid'] : '';
+$file_id = isset($_GET['fid']) ? trim($_GET['fid']) : '';
 
 if (empty($file_id)) {
     // Tampilkan placeholder jika file_id kosong
     header('Content-Type: image/svg+xml');
     echo '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="300"><rect width="100%" height="100%" fill="#141C2B"/><text x="50%" y="50%" font-family="sans-serif" font-size="20" fill="#8A99AF" text-anchor="middle" dy=".3em">No Poster</text></svg>';
+    exit;
+}
+
+// Jika fid sudah merupakan URL langsung (HTTP/HTTPS)
+if (preg_match('/^https?:\/\//i', $file_id)) {
+    header("Location: " . $file_id);
     exit;
 }
 
