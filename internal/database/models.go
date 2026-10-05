@@ -55,10 +55,11 @@ type Episode struct {
 	ChannelID     int64     `json:"channel_id"`
 	MessageID     int       `json:"message_id"`
 	FileID        string    `json:"file_id"`
-	Duration      int       `json:"duration"`
-	IsVIP         bool      `json:"is_vip"` // true jika hanya untuk member VIP
-	Caption       string    `json:"caption"`
-	CreatedAt     time.Time `json:"created_at"`
+	Duration        int       `json:"duration"`
+	IsVIP           bool      `json:"is_vip"` // true jika hanya untuk member VIP
+	Caption         string    `json:"caption"`
+	ThumbnailFileID string    `json:"thumbnail_file_id"`
+	CreatedAt       time.Time `json:"created_at"`
 }
 
 // TransactionStatus status pembayaran QRIS

@@ -32,9 +32,9 @@ func (b *Bot) HandleCommand(msg *tgbotapi.Message) {
 		b.handleStatus(telegramID)
 	case "simulate_pay":
 		b.handleSimulatePay(telegramID, args)
-	case "hapus_episode":
-		// Hanya admin yang bisa menghapus episode dari database
-		b.handleHapusEpisode(telegramID, args)
+	case "set_poster":
+		// Admin mengatur poster drama via command
+		b.handleSetPoster(telegramID, args)
 	default:
 		// Default tampilkan menu utama
 		b.handleStart(msg, "")
@@ -165,47 +165,55 @@ func (b *Bot) handleSimulatePay(telegramID int64, trxCode string) {
 	log.Printf("[SimulatePay] Transaksi %s berhasil disimulasikan lunas untuk user %d\n", trxCode, tx.TelegramID)
 }
 
-// handleHapusEpisode menghapus episode dari database berdasarkan telegram_message_id.
-// Perintah: /hapus_episode <message_id>
-// Cara dapat message_id: klik kanan/tahan postingan di channel → Salin Tautan → angka di akhir URL.
-// Hanya bisa dijalankan oleh admin (AdminUserID di config).
-func (b *Bot) handleHapusEpisode(telegramID int64, args string) {
-	// Cek hak akses admin
+// handleSetPoster memungkinkan admin mengatur atau memperbarui file_id poster drama secara manual.
+// Penggunaan: /set_poster <Judul Drama> | <file_id>
+func (b *Bot) handleSetPoster(telegramID int64, args string) {
 	if b.cfg.AdminUserID == 0 || telegramID != b.cfg.AdminUserID {
 		msg := tgbotapi.NewMessage(telegramID, "⛔ Perintah ini hanya bisa digunakan oleh admin.")
 		_, _ = b.api.Send(msg)
 		return
 	}
 
+	args = strings.TrimSpace(args)
 	if args == "" {
 		msg := tgbotapi.NewMessage(telegramID,
-			"⚠️ *Format salah.*\n\nGunakan: `/hapus_episode <message_id>`\n\n"+
-				"💡 *Cara dapat Message ID:*\n"+
-				"Buka channel privat → klik kanan/tahan postingan → *Salin Tautan* → angka di akhir URL adalah Message ID.")
+			"⚠️ *Format salah.*\n\nGunakan: `/set_poster <Judul Drama> | <file_id>`\n\n"+
+				"💡 *Contoh:*\n`/set_poster GrandBlue | AgACAgUAAxkBA...`\n`/set_poster Charlotte | AgACAgUAAxkBA...`\n\n"+
+				"Atau Anda cukup mengunggah foto langsung ke Channel/Bot dengan caption `#poster`.")
 		msg.ParseMode = "Markdown"
 		_, _ = b.api.Send(msg)
 		return
 	}
 
-	messageID, err := strconv.Atoi(strings.TrimSpace(args))
-	if err != nil || messageID <= 0 {
-		msg := tgbotapi.NewMessage(telegramID, "❌ Message ID tidak valid. Masukkan angka yang benar.")
+	var title, fileID string
+	if strings.Contains(args, "|") {
+		parts := strings.SplitN(args, "|", 2)
+		title = strings.TrimSpace(parts[0])
+		fileID = strings.TrimSpace(parts[1])
+	} else {
+		parts := strings.Fields(args)
+		if len(parts) >= 2 {
+			fileID = parts[len(parts)-1]
+			title = strings.Join(parts[:len(parts)-1], " ")
+		}
+	}
+
+	if title == "" || fileID == "" {
+		msg := tgbotapi.NewMessage(telegramID, "❌ Judul drama dan File ID harus diisi.")
 		_, _ = b.api.Send(msg)
 		return
 	}
 
-	if err := b.repo.DeleteEpisodeByMessageID(messageID); err != nil {
-		log.Printf("[Admin] Gagal hapus episode MsgID %d: %v\n", messageID, err)
-		msg := tgbotapi.NewMessage(telegramID,
-			fmt.Sprintf("❌ Gagal menghapus episode.\n\nKemungkinan episode dengan Message ID `%d` tidak ada di database.", messageID))
-		msg.ParseMode = "Markdown"
+	if err := b.repo.UpdateDramaPoster(title, fileID); err != nil {
+		log.Printf("[Admin] Gagal set poster drama '%s': %v\n", title, err)
+		msg := tgbotapi.NewMessage(telegramID, fmt.Sprintf("❌ Gagal update poster: %v", err))
 		_, _ = b.api.Send(msg)
 		return
 	}
 
-	log.Printf("[Admin] Episode MsgID %d berhasil dihapus dari database oleh admin %d\n", messageID, telegramID)
+	log.Printf("[Admin] Poster drama '%s' berhasil diupdate oleh admin %d (FileID: %s)\n", title, telegramID, fileID)
 	successMsg := tgbotapi.NewMessage(telegramID,
-		fmt.Sprintf("✅ *Episode berhasil dihapus dari database!*\n\n🆔 Message ID: `%d`\n💾 Data episode telah dihapus dan tidak akan muncul lagi di Mini App.", messageID))
+		fmt.Sprintf("✅ *Poster drama berhasil diperbarui!*\n\n🎬 *Judul:* %s\n🔑 *File ID:* `%s`\n💾 Perubahan telah tersimpan di database.", title, fileID))
 	successMsg.ParseMode = "Markdown"
 	_, _ = b.api.Send(successMsg)
 }

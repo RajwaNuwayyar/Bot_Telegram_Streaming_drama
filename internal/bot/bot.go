@@ -48,6 +48,10 @@ func (b *Bot) Start() {
 	for update := range updates {
 		// 1. Tangani postingan video BARU di Channel Privat
 		if update.ChannelPost != nil {
+			// Cek apakah ini perintah admin (#hapus_episode / #set_poster) dari channel
+			if b.handleChannelAdminCommand(update.ChannelPost) {
+				continue
+			}
 			go b.HandleChannelPost(update.ChannelPost)
 			continue
 		}
@@ -69,6 +73,12 @@ func (b *Bot) Start() {
 			// Perintah slash (misal /start, /vip, /help)
 			if update.Message.IsCommand() {
 				go b.HandleCommand(update.Message)
+				continue
+			}
+
+			// Cek upload poster langsung dari admin ke bot dengan tag #poster
+			if update.Message.From != nil && b.cfg.AdminUserID != 0 && update.Message.From.ID == b.cfg.AdminUserID && isPosterUpload(update.Message, update.Message.Caption) {
+				go b.handlePosterPost(update.Message)
 				continue
 			}
 

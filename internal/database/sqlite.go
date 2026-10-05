@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -384,5 +385,63 @@ func (r *SQLiteRepo) DeleteEpisodeByMessageID(messageID int) error {
 		return fmt.Errorf("episode dengan message_id %d tidak ditemukan di database", messageID)
 	}
 	return nil
+}
+
+// UpdateDramaPoster memperbarui kolom poster_url pada drama berdasarkan judul atau slug.
+// Dipanggil saat admin mengunggah foto thumbnail dengan tag #poster di channel Telegram.
+func (r *SQLiteRepo) UpdateDramaPoster(dramaTitle string, posterFileID string) error {
+	dramaTitle = strings.TrimSpace(dramaTitle)
+	if dramaTitle == "" {
+		return fmt.Errorf("judul drama tidak boleh kosong")
+	}
+	slug := strings.ToLower(strings.ReplaceAll(dramaTitle, " ", "-"))
+
+	var dramaID int64
+	err := r.db.QueryRow(`SELECT id FROM dramas WHERE LOWER(title) = LOWER(?) OR slug = ? LIMIT 1`, dramaTitle, slug).Scan(&dramaID)
+	if err == sql.ErrNoRows {
+		// Jika drama belum ada di database, buat record baru dengan poster_url
+		_, err = r.db.Exec(`INSERT INTO dramas (title, slug, poster_url, total_episodes, free_episodes_count) VALUES (?, ?, ?, 0, 1)`, dramaTitle, slug, posterFileID)
+		return err
+	} else if err != nil {
+		return err
+	}
+
+	// Update drama yang sudah ada
+	_, err = r.db.Exec(`UPDATE dramas SET poster_url = ? WHERE id = ?`, posterFileID, dramaID)
+	return err
+}
+// DeleteDramaByTitle menghapus seluruh drama beserta semua episodenya dari database berdasarkan judul.
+// Dipanggil saat admin menggunakan perintah /hapus_drama atau #hapus_drama di channel.
+// Mengembalikan jumlah episode yang berhasil dihapus.
+func (r *SQLiteRepo) DeleteDramaByTitle(dramaTitle string) (int64, error) {
+	dramaTitle = strings.TrimSpace(dramaTitle)
+	if dramaTitle == "" {
+		return 0, fmt.Errorf("judul drama tidak boleh kosong")
+	}
+
+	// Hapus semua episode milik drama ini (cocokkan berdasarkan drama_title, case-insensitive)
+	resEp, err := r.db.Exec(`DELETE FROM episodes WHERE LOWER(drama_title) = LOWER(?)`, dramaTitle)
+	if err != nil {
+		return 0, fmt.Errorf("gagal menghapus episode drama '%s': %w", dramaTitle, err)
+	}
+	epDeleted, _ := resEp.RowsAffected()
+
+	// Jika ada tabel dramas, hapus juga record drama-nya
+	resDrama, err := r.db.Exec(`DELETE FROM dramas WHERE LOWER(title) = LOWER(?)`, dramaTitle)
+	if err != nil {
+		// Tabel dramas mungkin tidak ada di SQLite (opsional), abaikan error ini
+		log.Printf("[Database] Info: tabel dramas tidak ditemukan atau gagal dihapus: %v\n", err)
+	} else {
+		dramaRows, _ := resDrama.RowsAffected()
+		if dramaRows == 0 && epDeleted == 0 {
+			return 0, fmt.Errorf("drama dengan judul '%s' tidak ditemukan di database", dramaTitle)
+		}
+	}
+
+	if epDeleted == 0 {
+		return 0, fmt.Errorf("drama dengan judul '%s' tidak ditemukan di database", dramaTitle)
+	}
+
+	return epDeleted, nil
 }
 

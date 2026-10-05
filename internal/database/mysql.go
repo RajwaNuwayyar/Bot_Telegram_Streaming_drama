@@ -143,14 +143,19 @@ func (r *MySQLRepo) SaveEpisode(ep *Episode) error {
 	var dramaID int64
 	err := r.db.QueryRow(`SELECT id FROM dramas WHERE title = ? LIMIT 1`, ep.DramaTitle).Scan(&dramaID)
 	if err == sql.ErrNoRows {
-        slug := strings.ToLower(strings.ReplaceAll(ep.DramaTitle, " ", "-"))
-        // default free episode = 1 (sesuai spesifikasi v5)
-		res, err := r.db.Exec(`INSERT INTO dramas (title, slug, total_episodes, free_episodes_count) VALUES (?, ?, 0, 1)`, ep.DramaTitle, slug)
-		if err != nil { return err }
+		slug := strings.ToLower(strings.ReplaceAll(ep.DramaTitle, " ", "-"))
+		// default free episode = 1 (sesuai spesifikasi v5)
+		res, err := r.db.Exec(`INSERT INTO dramas (title, slug, poster_url, total_episodes, free_episodes_count) VALUES (?, ?, ?, 0, 1)`, ep.DramaTitle, slug, ep.ThumbnailFileID)
+		if err != nil {
+			return err
+		}
 		dramaID, _ = res.LastInsertId()
 	} else if err != nil {
-        return err
-    }
+		return err
+	} else if ep.ThumbnailFileID != "" {
+		// Jika drama sudah ada tapi poster_url masih kosong, gunakan thumbnail ini sebagai fallback
+		_, _ = r.db.Exec(`UPDATE dramas SET poster_url = ? WHERE id = ? AND (poster_url IS NULL OR poster_url = '')`, ep.ThumbnailFileID, dramaID)
+	}
 
     // 2. Insert Episode
 	query := `
@@ -362,5 +367,54 @@ func (r *MySQLRepo) DeleteEpisodeByMessageID(messageID int) error {
 		return fmt.Errorf("episode dengan message_id %d tidak ditemukan di database", messageID)
 	}
 	return nil
+}
+
+// UpdateDramaPoster memperbarui kolom poster_url pada drama berdasarkan judul atau slug.
+// Dipanggil saat admin mengunggah foto thumbnail dengan tag #poster di channel Telegram.
+func (r *MySQLRepo) UpdateDramaPoster(dramaTitle string, posterFileID string) error {
+	dramaTitle = strings.TrimSpace(dramaTitle)
+	if dramaTitle == "" {
+		return fmt.Errorf("judul drama tidak boleh kosong")
+	}
+	slug := strings.ToLower(strings.ReplaceAll(dramaTitle, " ", "-"))
+
+	var dramaID int64
+	err := r.db.QueryRow(`SELECT id FROM dramas WHERE LOWER(title) = LOWER(?) OR slug = ? LIMIT 1`, dramaTitle, slug).Scan(&dramaID)
+	if err == sql.ErrNoRows {
+		// Jika drama belum ada di database, buat record baru dengan poster_url
+		_, err = r.db.Exec(`INSERT INTO dramas (title, slug, poster_url, total_episodes, free_episodes_count) VALUES (?, ?, ?, 0, 1)`, dramaTitle, slug, posterFileID)
+		return err
+	} else if err != nil {
+		return err
+	}
+
+	// Update drama yang sudah ada
+	_, err = r.db.Exec(`UPDATE dramas SET poster_url = ? WHERE id = ?`, posterFileID, dramaID)
+	return err
+}
+// DeleteDramaByTitle menghapus seluruh drama beserta semua episodenya dari database berdasarkan judul.
+// Episode ikut terhapus otomatis via ON DELETE CASCADE di foreign key dramas→episodes.
+// Mengembalikan jumlah episode yang dihapus.
+func (r *MySQLRepo) DeleteDramaByTitle(dramaTitle string) (int64, error) {
+	dramaTitle = strings.TrimSpace(dramaTitle)
+	if dramaTitle == "" {
+		return 0, fmt.Errorf("judul drama tidak boleh kosong")
+	}
+
+	// Hitung dulu episode yang akan terhapus (untuk laporan ke admin)
+	var epCount int64
+	_ = r.db.QueryRow(`SELECT COUNT(*) FROM episodes e INNER JOIN dramas d ON e.drama_id = d.id WHERE LOWER(d.title) = LOWER(?)`, dramaTitle).Scan(&epCount)
+
+	// Hapus drama (episode ikut terhapus via ON DELETE CASCADE)
+	res, err := r.db.Exec(`DELETE FROM dramas WHERE LOWER(title) = LOWER(?)`, dramaTitle)
+	if err != nil {
+		return 0, fmt.Errorf("gagal menghapus drama '%s': %w", dramaTitle, err)
+	}
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return 0, fmt.Errorf("drama dengan judul '%s' tidak ditemukan di database", dramaTitle)
+	}
+
+	return epCount, nil
 }
 
