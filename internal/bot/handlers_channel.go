@@ -302,6 +302,125 @@ func (b *Bot) handlePosterPost(post *tgbotapi.Message) {
 	}
 }
 
+// handleChannelAdminCommand mendeteksi perintah teks admin yang dikirim langsung di channel privat.
+// Perintah yang didukung (ditulis sebagai teks biasa di channel):
+//   #hapus_episode <message_id>   → Hapus episode dari database
+//   #set_poster <Judul> | <file_id> → Update poster drama
+//
+// Fungsi ini return true jika pesan adalah perintah admin dan sudah diproses,
+// sehingga caller bisa skip HandleChannelPost normal.
+func (b *Bot) handleChannelAdminCommand(post *tgbotapi.Message) bool {
+	if post == nil || post.Text == "" {
+		return false
+	}
+
+	text := strings.TrimSpace(post.Text)
+
+	// Perintah: #hapus_episode <message_id>
+	if strings.HasPrefix(strings.ToLower(text), "#hapus_episode") {
+		parts := strings.Fields(text)
+		var replyText string
+
+		if len(parts) < 2 {
+			replyText = "⚠️ *Format salah.*\n\nGunakan: `#hapus_episode <message_id>`\n\n💡 *Cara dapat Message ID:*\nKlik kanan/tahan postingan di channel → *Salin Tautan* → angka di akhir URL."
+		} else {
+			messageID, err := strconv.Atoi(parts[1])
+			if err != nil || messageID <= 0 {
+				replyText = "❌ Message ID tidak valid. Masukkan angka yang benar."
+			} else if err := b.repo.DeleteEpisodeByMessageID(messageID); err != nil {
+				log.Printf("[ChannelAdmin] Gagal hapus episode MsgID %d: %v\n", messageID, err)
+				replyText = fmt.Sprintf("❌ Gagal hapus episode.\n\nEpisode dengan Message ID `%d` tidak ditemukan di database.", messageID)
+			} else {
+				log.Printf("[ChannelAdmin] Episode MsgID %d berhasil dihapus via channel command\n", messageID)
+				replyText = fmt.Sprintf("✅ *Episode berhasil dihapus!*\n\n🆔 Message ID: `%d`\n💾 Data telah dihapus dari database.", messageID)
+			}
+		}
+
+		// Hapus pesan perintah dari channel agar channel tetap bersih
+		deleteMsg := tgbotapi.NewDeleteMessage(post.Chat.ID, post.MessageID)
+		_, _ = b.api.Request(deleteMsg)
+
+		// Kirim hasil ke admin via DM
+		if b.cfg.AdminUserID != 0 {
+			notif := tgbotapi.NewMessage(b.cfg.AdminUserID, replyText)
+			notif.ParseMode = "Markdown"
+			_, _ = b.api.Send(notif)
+		}
+		return true
+	}
+
+	// Perintah: #hapus_drama <Judul Drama>
+	if strings.HasPrefix(strings.ToLower(text), "#hapus_drama") {
+		args := strings.TrimSpace(text[len("#hapus_drama"):])
+		var replyText string
+
+		if args == "" {
+			replyText = "⚠️ *Format salah.*\n\nGunakan: `#hapus_drama <Judul Drama>`\n\n💡 *Contoh:*\n`#hapus_drama Grand Blue`\n`#hapus_drama The Secret CEO`\n\n⚠️ Ini akan menghapus *seluruh drama* beserta semua episodenya secara permanen!"
+		} else {
+			epDeleted, err := b.repo.DeleteDramaByTitle(args)
+			if err != nil {
+				log.Printf("[ChannelAdmin] Gagal hapus drama '%s': %v\n", args, err)
+				replyText = fmt.Sprintf("❌ Gagal menghapus drama.\n\n`%v`", err)
+			} else {
+				log.Printf("[ChannelAdmin] Drama '%s' berhasil dihapus (%d episode) via channel command\n", args, epDeleted)
+				replyText = fmt.Sprintf("✅ *Drama berhasil dihapus secara permanen!*\n\n🎬 *Judul:* %s\n🗑️ *Episode dihapus:* %d episode\n💾 Drama tidak akan muncul lagi di Mini App.", args, epDeleted)
+			}
+		}
+
+		// Hapus pesan perintah dari channel agar channel tetap bersih
+		deleteMsg := tgbotapi.NewDeleteMessage(post.Chat.ID, post.MessageID)
+		_, _ = b.api.Request(deleteMsg)
+
+		// Kirim hasil ke admin via DM
+		if b.cfg.AdminUserID != 0 {
+			notif := tgbotapi.NewMessage(b.cfg.AdminUserID, replyText)
+			notif.ParseMode = "Markdown"
+			_, _ = b.api.Send(notif)
+		}
+		return true
+	}
+
+	// Perintah: #set_poster <Judul> | <file_id>
+	if strings.HasPrefix(strings.ToLower(text), "#set_poster") {
+		args := strings.TrimSpace(text[len("#set_poster"):])
+		var replyText string
+
+		if args == "" {
+			replyText = "⚠️ *Format salah.*\n\nGunakan: `#set_poster <Judul Drama> | <file_id>`\n\n💡 Atau upload foto langsung ke channel/bot dengan caption `#poster`."
+		} else {
+			var title, fileID string
+			if strings.Contains(args, "|") {
+				p := strings.SplitN(args, "|", 2)
+				title = strings.TrimSpace(p[0])
+				fileID = strings.TrimSpace(p[1])
+			}
+			if title == "" || fileID == "" {
+				replyText = "❌ Judul drama dan File ID harus diisi.\n\nContoh: `#set_poster Grand Blue | AgACAgUAAxkBA...`"
+			} else if err := b.repo.UpdateDramaPoster(title, fileID); err != nil {
+				log.Printf("[ChannelAdmin] Gagal set poster '%s': %v\n", title, err)
+				replyText = fmt.Sprintf("❌ Gagal update poster: %v", err)
+			} else {
+				log.Printf("[ChannelAdmin] Poster '%s' berhasil diupdate via channel command\n", title)
+				replyText = fmt.Sprintf("✅ *Poster drama berhasil diperbarui!*\n\n🎬 *Judul:* %s\n🔑 *File ID:* `%s`", title, fileID)
+			}
+		}
+
+		// Hapus pesan perintah dari channel agar channel tetap bersih
+		deleteMsg := tgbotapi.NewDeleteMessage(post.Chat.ID, post.MessageID)
+		_, _ = b.api.Request(deleteMsg)
+
+		// Kirim hasil ke admin via DM
+		if b.cfg.AdminUserID != 0 {
+			notif := tgbotapi.NewMessage(b.cfg.AdminUserID, replyText)
+			notif.ParseMode = "Markdown"
+			_, _ = b.api.Send(notif)
+		}
+		return true
+	}
+
+	return false
+}
+
 // parsePosterTitle mengurai judul drama dari caption poster yang memiliki tag #poster
 // Contoh: "GrandBlue #poster" -> "GrandBlue"
 // "Charlotte #poster" -> "Charlotte"

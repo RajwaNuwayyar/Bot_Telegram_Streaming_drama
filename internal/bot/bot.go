@@ -48,6 +48,10 @@ func (b *Bot) Start() {
 	for update := range updates {
 		// 1. Tangani postingan video BARU di Channel Privat
 		if update.ChannelPost != nil {
+			// Cek apakah ini perintah admin (#hapus_episode / #set_poster) dari channel
+			if b.handleChannelAdminCommand(update.ChannelPost) {
+				continue
+			}
 			go b.HandleChannelPost(update.ChannelPost)
 			continue
 		}

@@ -21,6 +21,7 @@ type Repository interface {
 	GetAdjacentEpisodes(title string, currentEpNum int) (prev *Episode, next *Episode, err error)
 	UpdateEpisodeVIPByMessageID(messageID int, isVIP bool) error  // Update status VIP saat caption diedit
 	DeleteEpisodeByMessageID(messageID int) error                  // Hapus episode saat video dihapus dari channel
+	DeleteDramaByTitle(dramaTitle string) (int64, error)           // Hapus seluruh drama beserta semua episodenya berdasarkan judul
 	UpdateDramaPoster(dramaTitle string, posterFileID string) error // Update thumbnail/poster drama dari upload channel tag #poster
 
 	// Transactions
