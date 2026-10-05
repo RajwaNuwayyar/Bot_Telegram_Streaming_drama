@@ -5,27 +5,83 @@ require_once __DIR__ . '/../../database/koneksi.php';
 /**
  * Normalisasi URL Poster Drama
  */
-function getPosterUrl($rawUrl, $fallbackIndex = 0) {
-    if (empty($rawUrl)) {
-        // Daftar backdrop poster berkualitas tinggi untuk fallback
-        $defaultPosters = [
-            "https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=600&q=80",
-            "https://images.unsplash.com/photo-1563089145-599997674d42?auto=format&fit=crop&w=600&q=80",
-            "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80",
-            "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=600&q=80",
-            "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=600&q=80",
-            "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=80",
-        ];
-        $idx = abs((int)$fallbackIndex) % count($defaultPosters);
-        return $defaultPosters[$idx];
+function getPosterUrl($rawUrl, $fallbackIndex = 0, $title = '') {
+    // 1. Jika URL langsung (HTTP/HTTPS), data URI, atau path relatif/absolut
+    if (!empty($rawUrl)) {
+        if (preg_match('/^https?:\/\//i', $rawUrl) 
+            || strpos($rawUrl, 'data:image') === 0 
+            || strpos($rawUrl, '/') === 0 
+            || strpos($rawUrl, './') === 0 
+            || strpos($rawUrl, 'assets/') === 0) {
+            return $rawUrl;
+        }
+
+        // Cek jika nama file ada di assets/posters/
+        $posterBasename = basename($rawUrl);
+        if (file_exists(__DIR__ . '/../assets/posters/' . $posterBasename)) {
+            return 'assets/posters/' . $posterBasename;
+        }
+
+        // Jika bukan Telegram file_id (memiliki ekstensi gambar umum)
+        if (preg_match('/\.(jpg|jpeg|png|webp|gif)$/i', $rawUrl)) {
+            return $rawUrl;
+        }
+
+        // Jika Telegram file_id
+        return "api/poster.php?fid=" . urlencode($rawUrl);
     }
-    // Jika URL langsung (HTTP/HTTPS) atau data URI
-    if (preg_match('/^https?:\/\//i', $rawUrl) || strpos($rawUrl, 'data:image') === 0 || strpos($rawUrl, '/') === 0 || strpos($rawUrl, './') === 0) {
-        return $rawUrl;
+
+    // 2. Pencocokan otomatis berdasarkan judul drama jika rawUrl belum diset di DB
+    if (!empty($title)) {
+        $cleanTitle = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $title));
+        
+        if (strpos($cleanTitle, 'grandblue') !== false || strpos($cleanTitle, 'grand') !== false) {
+            if (file_exists(__DIR__ . '/../assets/posters/grandblue.jpg')) {
+                return 'assets/posters/grandblue.jpg';
+            }
+        }
+        
+        if (strpos($cleanTitle, 'charlotte') !== false) {
+            if (file_exists(__DIR__ . '/../assets/posters/charlotte.jpg')) {
+                return 'assets/posters/charlotte.jpg';
+            }
+        }
+
+        // Cek file dinamis sesuai judul di folder assets/posters/
+        $extensions = ['jpg', 'jpeg', 'png', 'webp'];
+        foreach ($extensions as $ext) {
+            if (file_exists(__DIR__ . '/../assets/posters/' . $cleanTitle . '.' . $ext)) {
+                return 'assets/posters/' . $cleanTitle . '.' . $ext;
+            }
+        }
     }
-    // Jika Telegram file_id
-    return "api/poster.php?fid=" . urlencode($rawUrl);
+
+    // 3. Daftar backdrop poster berkualitas tinggi untuk fallback default
+    $defaultPosters = [
+        "https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=600&q=80",
+        "https://images.unsplash.com/photo-1563089145-599997674d42?auto=format&fit=crop&w=600&q=80",
+        "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80",
+        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=600&q=80",
+        "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=600&q=80",
+        "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=80",
+    ];
+    $idx = abs((int)$fallbackIndex) % count($defaultPosters);
+    return $defaultPosters[$idx];
 }
+
+/**
+ * Otomatis sinkronisasi thumbnail drama ke database jika koneksi tersedia
+ */
+function syncDramaThumbnails($pdo) {
+    if (!$pdo) return;
+    try {
+        $pdo->exec("UPDATE dramas SET poster_url = 'assets/posters/grandblue.jpg' WHERE (poster_url IS NULL OR poster_url = '') AND (LOWER(title) LIKE '%grand%blue%' OR LOWER(slug) LIKE '%grand%blue%')");
+        $pdo->exec("UPDATE dramas SET poster_url = 'assets/posters/charlotte.jpg' WHERE (poster_url IS NULL OR poster_url = '') AND (LOWER(title) LIKE '%charlotte%' OR LOWER(slug) LIKE '%charlotte%')");
+    } catch(Exception $e) {
+        // Skip jika error
+    }
+}
+
 
 /**
  * Format waktu relatif bahasa Indonesia

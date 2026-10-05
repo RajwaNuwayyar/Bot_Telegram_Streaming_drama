@@ -1,5 +1,6 @@
 <?php
 // Ambil data untuk Home dari Database
+syncDramaThumbnails($pdo);
 $featuredBanners = getFeaturedBanners($pdo, 5);
 $allDramas = getDramas($pdo, 24);
 $categories = getCategories($pdo);
@@ -96,7 +97,7 @@ $bot_username = "TreadLessBot";
                 </div>
             <?php else: ?>
                 <?php foreach ($featuredBanners as $idx => $fb): 
-                    $bannerPoster = getPosterUrl($fb['poster_url'], $idx);
+                    $bannerPoster = getPosterUrl($fb['poster_url'], $idx, $fb['title']);
                     $firstEpId = !empty($fb['first_episode_id']) ? $fb['first_episode_id'] : $fb['id'];
                     $playLink = "https://t.me/{$bot_username}?start=watch_{$firstEpId}";
                 ?>
@@ -175,7 +176,7 @@ $bot_username = "TreadLessBot";
             </div>
         <?php else: ?>
             <?php foreach ($allDramas as $idx => $d): 
-                $poster = getPosterUrl($d['poster_url'], $idx);
+                $poster = getPosterUrl($d['poster_url'], $idx, $d['title']);
                 $epCount = (int)$d['total_episodes'];
                 $catName = !empty($d['category_name']) ? $d['category_name'] : 'Drama';
                 $catSlug = !empty($d['category_slug']) ? $d['category_slug'] : 'drama';
