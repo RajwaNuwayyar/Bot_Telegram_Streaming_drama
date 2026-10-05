@@ -49,16 +49,22 @@ func (b *Bot) HandleChannelPost(post *tgbotapi.Message) {
 		}
 	}
 
+	var thumbFileID string
+	if video.Thumbnail != nil {
+		thumbFileID = video.Thumbnail.FileID
+	}
+
 	episode := &database.Episode{
-		DramaTitle:    dramaTitle,
-		EpisodeNumber: epNum,
-		Title:         fmt.Sprintf("%s - Episode %d", dramaTitle, epNum),
-		ChannelID:     channelID,
-		MessageID:     messageID,
-		FileID:        video.FileID,
-		Duration:      video.Duration,
-		IsVIP:         isVIP,
-		Caption:       caption,
+		DramaTitle:      dramaTitle,
+		EpisodeNumber:   epNum,
+		Title:           fmt.Sprintf("%s - Episode %d", dramaTitle, epNum),
+		ChannelID:       channelID,
+		MessageID:       messageID,
+		FileID:          video.FileID,
+		Duration:        video.Duration,
+		IsVIP:           isVIP,
+		Caption:         caption,
+		ThumbnailFileID: thumbFileID,
 	}
 
 	// Simpan ke database (sesuai tugas: kirim data ke Database Engineer / tabel episodes)

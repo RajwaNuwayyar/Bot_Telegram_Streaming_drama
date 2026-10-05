@@ -143,14 +143,19 @@ func (r *MySQLRepo) SaveEpisode(ep *Episode) error {
 	var dramaID int64
 	err := r.db.QueryRow(`SELECT id FROM dramas WHERE title = ? LIMIT 1`, ep.DramaTitle).Scan(&dramaID)
 	if err == sql.ErrNoRows {
-        slug := strings.ToLower(strings.ReplaceAll(ep.DramaTitle, " ", "-"))
-        // default free episode = 1 (sesuai spesifikasi v5)
-		res, err := r.db.Exec(`INSERT INTO dramas (title, slug, total_episodes, free_episodes_count) VALUES (?, ?, 0, 1)`, ep.DramaTitle, slug)
-		if err != nil { return err }
+		slug := strings.ToLower(strings.ReplaceAll(ep.DramaTitle, " ", "-"))
+		// default free episode = 1 (sesuai spesifikasi v5)
+		res, err := r.db.Exec(`INSERT INTO dramas (title, slug, poster_url, total_episodes, free_episodes_count) VALUES (?, ?, ?, 0, 1)`, ep.DramaTitle, slug, ep.ThumbnailFileID)
+		if err != nil {
+			return err
+		}
 		dramaID, _ = res.LastInsertId()
 	} else if err != nil {
-        return err
-    }
+		return err
+	} else if ep.ThumbnailFileID != "" {
+		// Jika drama sudah ada tapi poster_url masih kosong, gunakan thumbnail ini sebagai fallback
+		_, _ = r.db.Exec(`UPDATE dramas SET poster_url = ? WHERE id = ? AND (poster_url IS NULL OR poster_url = '')`, ep.ThumbnailFileID, dramaID)
+	}
 
     // 2. Insert Episode
 	query := `

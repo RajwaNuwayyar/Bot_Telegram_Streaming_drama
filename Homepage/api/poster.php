@@ -17,8 +17,22 @@ if (preg_match('/^https?:\/\//i', $file_id)) {
     exit;
 }
 
-// Token dari .env
-$bot_token = "8975561353:AAGyjm4yTqVfw9emU1-lui3qXMew48xNec8";
+// Ambil Token secara dinamis dari .env
+$bot_token = '';
+$envPath = __DIR__ . '/../../.env';
+if (file_exists($envPath)) {
+    $envContent = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($envContent as $line) {
+        $line = trim($line);
+        if (strpos($line, 'BOT_TOKEN=') === 0) {
+            $bot_token = trim(substr($line, 10));
+            break;
+        }
+    }
+}
+if (empty($bot_token)) {
+    $bot_token = "8975561353:AAGyjm4yTqVfw9emU1-lui3qXMew48xNec8";
+}
 
 // 1. Dapatkan file_path dari file_id
 $url = "https://api.telegram.org/bot" . $bot_token . "/getFile?file_id=" . $file_id;
