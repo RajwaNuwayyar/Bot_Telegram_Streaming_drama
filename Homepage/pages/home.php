@@ -1,6 +1,5 @@
 <?php
 // Ambil data untuk Home dari Database
-syncDramaThumbnails($pdo);
 $featuredBanners = getFeaturedBanners($pdo, 5);
 $allDramas = getDramas($pdo, 24);
 $categories = getCategories($pdo);

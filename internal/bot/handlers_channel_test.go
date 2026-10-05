@@ -56,3 +56,39 @@ func TestParseCaption(t *testing.T) {
 		}
 	}
 }
+
+func TestParsePosterTitle(t *testing.T) {
+	tests := []struct {
+		caption       string
+		expectedTitle string
+	}{
+		{
+			caption:       "GrandBlue #poster",
+			expectedTitle: "GrandBlue",
+		},
+		{
+			caption:       "Charlotte #poster",
+			expectedTitle: "Charlotte",
+		},
+		{
+			caption:       "[Grand Blue] #poster",
+			expectedTitle: "Grand Blue",
+		},
+		{
+			caption:       "Judul: Charlotte\nTag: #poster",
+			expectedTitle: "Charlotte",
+		},
+		{
+			caption:       "GrandBlue - Poster #thumbnail",
+			expectedTitle: "GrandBlue",
+		},
+	}
+
+	for _, tt := range tests {
+		title := parsePosterTitle(tt.caption)
+		if title != tt.expectedTitle {
+			t.Errorf("parsePosterTitle(%q) = %q, expected %q", tt.caption, title, tt.expectedTitle)
+		}
+	}
+}
+

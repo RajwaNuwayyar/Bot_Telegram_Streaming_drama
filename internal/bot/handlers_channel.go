@@ -14,14 +14,26 @@ import (
 // HandleChannelPost memproses postingan video baru dari channel privat
 // Mengambil video, mengurai caption judul & part/episode, lalu menyimpannya ke database
 func (b *Bot) HandleChannelPost(post *tgbotapi.Message) {
-	if post == nil || post.Video == nil {
+	if post == nil {
 		return
 	}
 
 	channelID := post.Chat.ID
 	messageID := post.MessageID
-	video := post.Video
 	caption := strings.TrimSpace(post.Caption)
+
+	// 1. Tangani upload POSTER drama (postingan foto/gambar dengan tag #poster)
+	if isPosterUpload(post, caption) {
+		b.handlePosterPost(post)
+		return
+	}
+
+	// 2. Jika bukan video, abaikan
+	if post.Video == nil {
+		return
+	}
+
+	video := post.Video
 
 	log.Printf("[ChannelListener] Video baru terdeteksi di Channel %d (MsgID: %d, FileID: %s)\n",
 		channelID, messageID, video.FileID)
@@ -83,11 +95,22 @@ func (b *Bot) HandleChannelPost(post *tgbotapi.Message) {
 // HandleEditedChannelPost menangani saat admin mengedit caption postingan di channel privat.
 // Contoh: admin menghapus "#vip" dari caption → episode diubah menjadi gratis di database.
 func (b *Bot) HandleEditedChannelPost(post *tgbotapi.Message) {
-	if post == nil || post.Video == nil {
+	if post == nil {
 		return
 	}
 
 	caption := strings.TrimSpace(post.Caption)
+
+	// Tangani jika yang diedit adalah postingan poster dengan tag #poster
+	if isPosterUpload(post, caption) {
+		b.handlePosterPost(post)
+		return
+	}
+
+	if post.Video == nil {
+		return
+	}
+
 	messageID := post.MessageID
 
 	// Urai ulang caption yang sudah diedit
@@ -207,4 +230,108 @@ func parseCaption(caption string) (title string, epNum int, isVIP bool) {
 	// Default fallback
 	firstLine := strings.Split(cleanText, "\n")[0]
 	return firstLine, 1, isVIP
+}
+
+// isPosterUpload memeriksa apakah pesan merupakan postingan poster foto/gambar dengan tag #poster
+func isPosterUpload(post *tgbotapi.Message, caption string) bool {
+	if post == nil {
+		return false
+	}
+	lower := strings.ToLower(caption)
+	hasPosterTag := strings.Contains(lower, "#poster") ||
+		strings.Contains(lower, "[poster]") ||
+		strings.Contains(lower, "(poster)") ||
+		strings.Contains(lower, "tag: poster") ||
+		strings.Contains(lower, "tag:poster") ||
+		strings.Contains(lower, "#thumbnail")
+
+	if !hasPosterTag {
+		return false
+	}
+
+	return len(post.Photo) > 0 || (post.Document != nil && strings.HasPrefix(post.Document.MimeType, "image/"))
+}
+
+// handlePosterPost menangani penyimpanan file_id poster drama ke database
+func (b *Bot) handlePosterPost(post *tgbotapi.Message) {
+	caption := strings.TrimSpace(post.Caption)
+	var fileID string
+
+	if len(post.Photo) > 0 {
+		// Ambil resolusi gambar tertinggi (elemen paling akhir di PhotoSize)
+		fileID = post.Photo[len(post.Photo)-1].FileID
+	} else if post.Document != nil {
+		fileID = post.Document.FileID
+	}
+
+	if fileID == "" {
+		return
+	}
+
+	dramaTitle := parsePosterTitle(caption)
+	log.Printf("[ChannelListener] Poster drama terdeteksi (MsgID: %d, Drama: '%s', FileID: %s)\n",
+		post.MessageID, dramaTitle, fileID)
+
+	if err := b.repo.UpdateDramaPoster(dramaTitle, fileID); err != nil {
+		log.Printf("[ChannelListener] Gagal update poster drama '%s': %v\n", dramaTitle, err)
+		return
+	}
+
+	log.Printf("[ChannelListener] Berhasil update poster drama '%s' ke database (FileID: %s)\n", dramaTitle, fileID)
+
+	// Kirim konfirmasi ke admin
+	if b.cfg.AdminUserID != 0 {
+		notifText := fmt.Sprintf(`🖼️ *Poster Drama Berhasil Diperbarui!*
+━━━━━━━━━━━━━━━━━━━━
+🎬 *Judul Drama:* %s
+🏷️ *Tag:* #poster
+🆔 *Message ID:* %d
+🔑 *File ID:* `+"`%s`"+`
+💾 Thumbnail drama telah tersimpan di database dan otomatis tampil di Mini App.`,
+			dramaTitle, post.MessageID, fileID)
+
+		notifMsg := tgbotapi.NewMessage(b.cfg.AdminUserID, notifText)
+		notifMsg.ParseMode = "Markdown"
+		_, _ = b.api.Send(notifMsg)
+	}
+}
+
+// parsePosterTitle mengurai judul drama dari caption poster yang memiliki tag #poster
+// Contoh: "GrandBlue #poster" -> "GrandBlue"
+// "Charlotte #poster" -> "Charlotte"
+// "Judul: Grand Blue #poster" -> "Grand Blue"
+// "[Grand Blue] #poster" -> "Grand Blue"
+func parsePosterTitle(caption string) string {
+	if caption == "" {
+		return "Drama Tanpa Judul"
+	}
+
+	// Bersihkan hashtag dan tag poster
+	reTag := regexp.MustCompile(`(?i)#(?:poster|thumbnail|tag_poster|tag)\b|\[poster\]|\(poster\)`)
+	cleanText := reTag.ReplaceAllString(caption, "")
+
+	// Periksa baris untuk pola "Judul: ..." atau "Title: ..."
+	lines := strings.Split(cleanText, "\n")
+	rePrefix := regexp.MustCompile(`(?i)^(?:judul|title|poster|nama|drama)\s*[:=-]\s*`)
+	reSuffix := regexp.MustCompile(`(?i)\s*[-–:]\s*(?:poster|thumbnail)\s*$`)
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed != "" {
+			trimmed = rePrefix.ReplaceAllString(trimmed, "")
+			trimmed = reSuffix.ReplaceAllString(trimmed, "")
+			trimmed = strings.Trim(trimmed, " -–:[]()")
+			if trimmed != "" {
+				return trimmed
+			}
+		}
+	}
+
+	firstLine := strings.TrimSpace(lines[0])
+	firstLine = reSuffix.ReplaceAllString(firstLine, "")
+	firstLine = strings.Trim(firstLine, " -–:[]()")
+	if firstLine != "" {
+		return firstLine
+	}
+	return "Drama Tanpa Judul"
 }

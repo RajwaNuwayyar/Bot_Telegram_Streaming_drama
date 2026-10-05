@@ -35,6 +35,9 @@ func (b *Bot) HandleCommand(msg *tgbotapi.Message) {
 	case "hapus_episode":
 		// Hanya admin yang bisa menghapus episode dari database
 		b.handleHapusEpisode(telegramID, args)
+	case "set_poster":
+		// Admin mengatur poster drama via command
+		b.handleSetPoster(telegramID, args)
 	default:
 		// Default tampilkan menu utama
 		b.handleStart(msg, "")
@@ -206,6 +209,59 @@ func (b *Bot) handleHapusEpisode(telegramID int64, args string) {
 	log.Printf("[Admin] Episode MsgID %d berhasil dihapus dari database oleh admin %d\n", messageID, telegramID)
 	successMsg := tgbotapi.NewMessage(telegramID,
 		fmt.Sprintf("✅ *Episode berhasil dihapus dari database!*\n\n🆔 Message ID: `%d`\n💾 Data episode telah dihapus dan tidak akan muncul lagi di Mini App.", messageID))
+	successMsg.ParseMode = "Markdown"
+	_, _ = b.api.Send(successMsg)
+}
+
+// handleSetPoster memungkinkan admin mengatur atau memperbarui file_id poster drama secara manual.
+// Penggunaan: /set_poster <Judul Drama> | <file_id>
+func (b *Bot) handleSetPoster(telegramID int64, args string) {
+	if b.cfg.AdminUserID == 0 || telegramID != b.cfg.AdminUserID {
+		msg := tgbotapi.NewMessage(telegramID, "⛔ Perintah ini hanya bisa digunakan oleh admin.")
+		_, _ = b.api.Send(msg)
+		return
+	}
+
+	args = strings.TrimSpace(args)
+	if args == "" {
+		msg := tgbotapi.NewMessage(telegramID,
+			"⚠️ *Format salah.*\n\nGunakan: `/set_poster <Judul Drama> | <file_id>`\n\n"+
+				"💡 *Contoh:*\n`/set_poster GrandBlue | AgACAgUAAxkBA...`\n`/set_poster Charlotte | AgACAgUAAxkBA...`\n\n"+
+				"Atau Anda cukup mengunggah foto langsung ke Channel/Bot dengan caption `#poster`.")
+		msg.ParseMode = "Markdown"
+		_, _ = b.api.Send(msg)
+		return
+	}
+
+	var title, fileID string
+	if strings.Contains(args, "|") {
+		parts := strings.SplitN(args, "|", 2)
+		title = strings.TrimSpace(parts[0])
+		fileID = strings.TrimSpace(parts[1])
+	} else {
+		parts := strings.Fields(args)
+		if len(parts) >= 2 {
+			fileID = parts[len(parts)-1]
+			title = strings.Join(parts[:len(parts)-1], " ")
+		}
+	}
+
+	if title == "" || fileID == "" {
+		msg := tgbotapi.NewMessage(telegramID, "❌ Judul drama dan File ID harus diisi.")
+		_, _ = b.api.Send(msg)
+		return
+	}
+
+	if err := b.repo.UpdateDramaPoster(title, fileID); err != nil {
+		log.Printf("[Admin] Gagal set poster drama '%s': %v\n", title, err)
+		msg := tgbotapi.NewMessage(telegramID, fmt.Sprintf("❌ Gagal update poster: %v", err))
+		_, _ = b.api.Send(msg)
+		return
+	}
+
+	log.Printf("[Admin] Poster drama '%s' berhasil diupdate oleh admin %d (FileID: %s)\n", title, telegramID, fileID)
+	successMsg := tgbotapi.NewMessage(telegramID,
+		fmt.Sprintf("✅ *Poster drama berhasil diperbarui!*\n\n🎬 *Judul:* %s\n🔑 *File ID:* `%s`\n💾 Perubahan telah tersimpan di database.", title, fileID))
 	successMsg.ParseMode = "Markdown"
 	_, _ = b.api.Send(successMsg)
 }

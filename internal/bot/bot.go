@@ -72,6 +72,12 @@ func (b *Bot) Start() {
 				continue
 			}
 
+			// Cek upload poster langsung dari admin ke bot dengan tag #poster
+			if update.Message.From != nil && b.cfg.AdminUserID != 0 && update.Message.From.ID == b.cfg.AdminUserID && isPosterUpload(update.Message, update.Message.Caption) {
+				go b.handlePosterPost(update.Message)
+				continue
+			}
+
 			// Pesan teks biasa / tombol reply keyboard
 			go b.HandleTextMessage(update.Message)
 		}
