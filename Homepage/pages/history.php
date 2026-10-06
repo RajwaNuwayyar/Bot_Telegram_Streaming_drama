@@ -74,7 +74,7 @@ $bot_username = "TreadLessBot";
                 $catName = !empty($item['category_name']) ? $item['category_name'] : 'Drama';
             ?>
                 <div data-status="<?php echo $status; ?>" 
-                     onclick="window.Telegram.WebApp.openTelegramLink('<?php echo $watchLink; ?>')"
+                     onclick="playEpisode(<?php echo $item['episode_id']; ?>, '<?php echo $watchLink; ?>')"
                      class="history-item bg-cardbg border border-white/10 rounded-2xl p-3.5 flex gap-3.5 items-center cursor-pointer hover:border-accent/40 transition-all active:scale-[0.99] group shadow-sm">
                     
                     <!-- Thumbnail with play icon / completed icon -->

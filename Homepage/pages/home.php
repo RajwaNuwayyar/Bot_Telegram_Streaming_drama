@@ -100,7 +100,7 @@ $bot_username = "TreadLessBot";
                     $firstEpId = !empty($fb['first_episode_id']) ? $fb['first_episode_id'] : $fb['id'];
                     $playLink = "https://t.me/{$bot_username}?start=watch_{$firstEpId}";
                 ?>
-                    <div onclick="window.Telegram.WebApp.openTelegramLink('<?php echo $playLink; ?>')" 
+                    <div onclick="playEpisode(<?php echo $firstEpId; ?>, '<?php echo $playLink; ?>')" 
                          class="min-w-[270px] max-w-[290px] h-[340px] rounded-3xl border border-white/10 relative overflow-hidden flex flex-col justify-end p-5 snap-center shrink-0 group cursor-pointer shadow-xl transition-transform active:scale-[0.98]">
                         <!-- Poster Image with Parallax zoom on hover -->
                         <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105" 
@@ -185,7 +185,7 @@ $bot_username = "TreadLessBot";
                 <div class="drama-card flex flex-col cursor-pointer group" 
                      data-title="<?php echo strtolower(htmlspecialchars($d['title'])); ?>" 
                      data-category="<?php echo htmlspecialchars($catSlug); ?>"
-                     onclick="window.Telegram.WebApp.openTelegramLink('<?php echo $playLink; ?>')">
+                     onclick="playEpisode(<?php echo $watchId; ?>, '<?php echo $playLink; ?>')">
                     
                     <!-- Poster Container with 3:4 Aspect Ratio -->
                     <div class="w-full aspect-[3/4] rounded-2xl bg-cardbg border border-white/5 relative overflow-hidden mb-2.5 shadow-md transition-all duration-300 group-hover:border-accent/40 group-hover:shadow-accent/10 group-active:scale-[0.98]">
@@ -245,19 +245,13 @@ $bot_username = "TreadLessBot";
         <?php endif; ?>
     </div>
 
-    <!-- Empty Search State -->
-    <div id="no-search-results" class="hidden py-14 flex flex-col items-center justify-center text-center">
-        <div class="w-14 h-14 rounded-full bg-cardbg border border-white/10 flex items-center justify-center mb-3 text-textmuted">
-            <i class="fa-solid fa-magnifying-glass text-xl"></i>
-        </div>
-        <h4 class="font-bold text-white text-sm mb-1">Drama Tidak Ditemukan</h4>
-        <p class="text-xs text-textmuted max-w-[240px]">Coba cari dengan kata kunci lain atau kirimkan permintaan di menu Request.</p>
-    </div>
+    <!-- Server-Side Search Script logic replaced below -->
 </div>
 
 <!-- Home Interactivity Script -->
 <script>
 let currentGenre = 'all';
+let searchTimeout = null;
 
 function filterDramasByGenre(slug, btn) {
     currentGenre = slug;
@@ -281,7 +275,10 @@ function filterDramasBySearch() {
     } else {
         clearBtn.classList.add('hidden');
     }
-    applyFilters();
+    
+    // Debounce search
+    if(searchTimeout) clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(applyFilters, 400);
 }
 
 function clearDramaSearch() {
@@ -292,36 +289,26 @@ function clearDramaSearch() {
 }
 
 function applyFilters() {
-    const searchVal = document.getElementById('drama-search-input').value.toLowerCase().trim();
-    const cards = document.querySelectorAll('.drama-card');
-    let visibleCount = 0;
-
-    cards.forEach(card => {
-        const title = card.getAttribute('data-title') || '';
-        const category = card.getAttribute('data-category') || '';
-        
-        const matchesGenre = (currentGenre === 'all' || category === currentGenre);
-        const matchesSearch = (searchVal === '' || title.includes(searchVal));
-
-        if (matchesGenre && matchesSearch) {
-            card.style.display = 'flex';
-            visibleCount++;
-        } else {
-            card.style.display = 'none';
-        }
-    });
-
-    const noResults = document.getElementById('no-search-results');
-    const countLabel = document.getElementById('drama-count-label');
+    const searchVal = document.getElementById('drama-search-input').value.trim();
+    const grid = document.getElementById('dramas-grid');
     
-    if (visibleCount === 0 && cards.length > 0) {
-        noResults.classList.remove('hidden');
-    } else {
-        noResults.classList.add('hidden');
-    }
-
-    if (countLabel) {
-        countLabel.textContent = visibleCount + ' Drama';
-    }
+    // Show loading state
+    grid.innerHTML = '<div class="col-span-2 py-8 text-center text-accent"><i class="fa-solid fa-circle-notch fa-spin text-2xl"></i></div>';
+    
+    fetch(`api/search.php?q=${encodeURIComponent(searchVal)}&cat=${encodeURIComponent(currentGenre)}`)
+        .then(res => res.text())
+        .then(html => {
+            grid.innerHTML = html;
+            const countLabel = document.getElementById('drama-count-label');
+            if (countLabel) {
+                // Approximate count or just say "Results"
+                const count = (html.match(/class="drama-card/g) || []).length;
+                countLabel.textContent = count + ' Drama';
+            }
+        })
+        .catch(err => {
+            console.error('Error fetching search results:', err);
+            grid.innerHTML = '<div class="col-span-2 text-center text-red-500 text-xs py-4">Gagal memuat drama.</div>';
+        });
 }
 </script>

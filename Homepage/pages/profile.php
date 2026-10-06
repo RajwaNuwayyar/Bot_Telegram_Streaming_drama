@@ -33,8 +33,10 @@ if ($telegram_user_id) {
 
     <!-- User Info Card -->
     <div class="bg-cardbg border border-white/5 rounded-3xl p-5 mb-5 flex items-center gap-4">
-        <div class="w-16 h-16 rounded-full bg-darkbg border border-white/10 flex items-center justify-center shrink-0 text-textmuted text-2xl">
-            <i class="fa-regular fa-user"></i>
+        <div class="w-16 h-16 rounded-full bg-darkbg border border-white/10 flex items-center justify-center shrink-0 text-textmuted text-2xl overflow-hidden relative">
+            <!-- Tampilkan foto profil Telegram dari JS, default ke ikon jika tidak ada -->
+            <img id="profile-avatar" src="" alt="Avatar" class="w-full h-full object-cover hidden absolute inset-0 z-10" onerror="this.classList.add('hidden')">
+            <i class="fa-regular fa-user relative z-0"></i>
         </div>
         <div class="flex-1 min-w-0">
             <h2 id="tg-username" class="text-lg font-bold truncate mb-1 text-white"><?php echo $user ? htmlspecialchars($user['first_name'] . ' ' . $user['last_name']) : 'Guest'; ?></h2>
