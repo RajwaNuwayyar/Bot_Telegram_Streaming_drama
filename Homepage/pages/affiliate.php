@@ -1,3 +1,27 @@
+<?php
+$telegram_user_id = isset($_SESSION['telegram_user_id']) ? $_SESSION['telegram_user_id'] : null;
+$user = null;
+if ($telegram_user_id) {
+    $user = getUserByTelegramId($pdo, $telegram_user_id);
+}
+
+// Fallback dummy if not found
+if (!$user) {
+    $user = ['id' => 0, 'coin_balance' => 0, 'total_referral_value' => 0, 'referral_code' => ''];
+}
+
+$bot_username = "TreadLessBot";
+$balance = (int)$user['coin_balance'];
+$ref_code = !empty($user['referral_code']) ? $user['referral_code'] : 'REF' . $user['id'];
+$ref_link = "https://t.me/" . $bot_username . "?start=" . $ref_code;
+
+// Calculate Level (Simplified logic)
+$ref_value = (int)$user['total_referral_value'];
+$level = 1;
+if ($ref_value > 5000000) $level = 4;
+elseif ($ref_value > 3000000) $level = 3;
+elseif ($ref_value > 1000000) $level = 2;
+?>
 <!-- Affiliate View -->
 <div class="px-5 pt-6 pb-4">
     <!-- Header -->
@@ -17,12 +41,12 @@
         <div class="relative z-10">
             <p data-i18n="total_commission" class="text-xs text-emerald-200 mb-1 uppercase tracking-widest font-semibold">Total Commission</p>
             <div class="flex items-end gap-2 mb-2">
-                <h2 class="text-3xl font-bold text-white leading-none">Rp 120.000</h2>
+                <h2 class="text-3xl font-bold text-white leading-none">Rp <?php echo number_format($balance, 0, ',', '.'); ?></h2>
             </div>
             
             <p data-i18n="ready_withdraw" class="text-[11px] text-emerald-200 mb-6">Ready to withdraw</p>
             
-            <button data-i18n="btn_withdraw" class="w-full bg-emerald-500 hover:bg-emerald-400 text-darkbg font-bold py-3 rounded-xl shadow-lg transition-colors">
+            <button onclick="alert('Fitur withdraw sedang dalam pengembangan!')" data-i18n="btn_withdraw" class="w-full bg-emerald-500 hover:bg-emerald-400 text-darkbg font-bold py-3 rounded-xl shadow-lg transition-colors">
                 Withdraw Funds
             </button>
         </div>
@@ -32,12 +56,12 @@
     <h3 data-i18n="referral_link" class="text-sm font-bold mb-3 text-textmuted uppercase tracking-wider">Your Referral Link</h3>
     <div class="bg-cardbg border border-white/5 rounded-2xl p-4 flex items-center justify-between mb-8 gap-3">
         <div class="flex-1 min-w-0">
-            <p data-i18n="share_link_desc" class="text-xs text-textmuted mb-1">Share this link to earn 18% commission</p>
-            <div class="text-sm text-white font-mono bg-darkbg p-2 rounded-lg truncate border border-white/5 select-all">
-                t.me/DramaStreamBot?start=REF123
+            <p data-i18n="share_link_desc" class="text-xs text-textmuted mb-1">Share this link to earn commission</p>
+            <div class="text-sm text-white font-mono bg-darkbg p-2 rounded-lg truncate border border-white/5 select-all" id="ref-link-text">
+                <?php echo htmlspecialchars($ref_link); ?>
             </div>
         </div>
-        <button class="w-12 h-12 shrink-0 bg-emerald-500/10 text-emerald-500 rounded-xl flex items-center justify-center hover:bg-emerald-500/20 transition-colors">
+        <button onclick="copyRefLink()" class="w-12 h-12 shrink-0 bg-emerald-500/10 text-emerald-500 rounded-xl flex items-center justify-center hover:bg-emerald-500/20 transition-colors">
             <i class="fa-regular fa-copy text-lg"></i>
         </button>
     </div>
@@ -45,46 +69,60 @@
     <!-- Commission Levels -->
     <h3 data-i18n="commission_tiers" class="text-sm font-bold mb-3 text-textmuted uppercase tracking-wider">Commission Tiers</h3>
     <div class="flex flex-col gap-3 pb-8">
-        <div class="bg-cardbg border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+        <div class="bg-cardbg border <?php echo $level == 1 ? 'border-emerald-500/30' : 'border-white/5'; ?> rounded-2xl p-4 flex items-center justify-between relative overflow-hidden">
+            <?php if($level == 1) echo '<div class="absolute top-0 right-0 w-1.5 h-full bg-emerald-500"></div>'; ?>
             <div>
-                <h4 class="font-bold text-sm text-white mb-0.5">Level 1 - Starter</h4>
+                <h4 class="font-bold text-sm text-white mb-0.5 flex items-center gap-2">Level 1 - Starter <?php if($level == 1) echo '<span data-i18n="current_tier" class="bg-emerald-500/20 text-emerald-500 px-1.5 py-0.5 rounded text-[8px] uppercase tracking-wider">Current</span>'; ?></h4>
                 <p data-i18n="all_users" class="text-[11px] text-textmuted">All users</p>
             </div>
-            <div class="text-right">
-                <span class="text-emerald-500 font-bold">10%</span>
+            <div class="text-right <?php echo $level == 1 ? 'mr-3' : ''; ?>">
+                <span class="text-emerald-500 font-bold <?php echo $level == 1 ? 'text-lg' : ''; ?>">10%</span>
             </div>
         </div>
         
-        <div class="bg-cardbg border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+        <div class="bg-cardbg border <?php echo $level == 2 ? 'border-emerald-500/30' : 'border-white/5'; ?> rounded-2xl p-4 flex items-center justify-between relative overflow-hidden">
+            <?php if($level == 2) echo '<div class="absolute top-0 right-0 w-1.5 h-full bg-emerald-500"></div>'; ?>
             <div>
-                <h4 class="font-bold text-sm text-white mb-0.5">Level 2 - Pro</h4>
+                <h4 class="font-bold text-sm text-white mb-0.5 flex items-center gap-2">Level 2 - Pro <?php if($level == 2) echo '<span data-i18n="current_tier" class="bg-emerald-500/20 text-emerald-500 px-1.5 py-0.5 rounded text-[8px] uppercase tracking-wider">Current</span>'; ?></h4>
                 <p data-i18n="sales_req_1" class="text-[11px] text-textmuted">> Rp 1M referral sales</p>
             </div>
-            <div class="text-right">
-                <span class="text-emerald-500 font-bold">12%</span>
+            <div class="text-right <?php echo $level == 2 ? 'mr-3' : ''; ?>">
+                <span class="text-emerald-500 font-bold <?php echo $level == 2 ? 'text-lg' : ''; ?>">12%</span>
             </div>
         </div>
 
-        <div class="bg-cardbg border border-emerald-500/30 rounded-2xl p-4 flex items-center justify-between relative overflow-hidden">
-            <div class="absolute top-0 right-0 w-1.5 h-full bg-emerald-500"></div>
+        <div class="bg-cardbg border <?php echo $level == 3 ? 'border-emerald-500/30' : 'border-white/5'; ?> rounded-2xl p-4 flex items-center justify-between relative overflow-hidden">
+            <?php if($level == 3) echo '<div class="absolute top-0 right-0 w-1.5 h-full bg-emerald-500"></div>'; ?>
             <div>
-                <h4 class="font-bold text-sm text-white mb-0.5 flex items-center gap-2">Level 3 - Elite <span data-i18n="current_tier" class="bg-emerald-500/20 text-emerald-500 px-1.5 py-0.5 rounded text-[8px] uppercase tracking-wider">Current</span></h4>
+                <h4 class="font-bold text-sm text-white mb-0.5 flex items-center gap-2">Level 3 - Elite <?php if($level == 3) echo '<span data-i18n="current_tier" class="bg-emerald-500/20 text-emerald-500 px-1.5 py-0.5 rounded text-[8px] uppercase tracking-wider">Current</span>'; ?></h4>
                 <p data-i18n="sales_req_3" class="text-[11px] text-textmuted">> Rp 3M referral sales</p>
             </div>
-            <div class="text-right mr-3">
-                <span class="text-emerald-500 font-bold text-lg">15%</span>
+            <div class="text-right <?php echo $level == 3 ? 'mr-3' : ''; ?>">
+                <span class="text-emerald-500 font-bold <?php echo $level == 3 ? 'text-lg' : ''; ?>">15%</span>
             </div>
         </div>
 
-        <div class="bg-cardbg border border-white/5 rounded-2xl p-4 flex items-center justify-between opacity-50">
+        <div class="bg-cardbg border <?php echo $level == 4 ? 'border-emerald-500/30' : 'border-white/5'; ?> rounded-2xl p-4 flex items-center justify-between <?php echo $level < 4 ? 'opacity-50' : 'relative overflow-hidden'; ?>">
+            <?php if($level == 4) echo '<div class="absolute top-0 right-0 w-1.5 h-full bg-emerald-500"></div>'; ?>
             <div>
-                <h4 class="font-bold text-sm text-white mb-0.5">Level 4 - Master</h4>
+                <h4 class="font-bold text-sm text-white mb-0.5 flex items-center gap-2">Level 4 - Master <?php if($level == 4) echo '<span data-i18n="current_tier" class="bg-emerald-500/20 text-emerald-500 px-1.5 py-0.5 rounded text-[8px] uppercase tracking-wider">Current</span>'; ?></h4>
                 <p data-i18n="sales_req_5" class="text-[11px] text-textmuted">> Rp 5M referral sales</p>
             </div>
-            <div class="text-right">
-                <span class="text-emerald-500 font-bold">18%</span>
-                <i class="fa-solid fa-lock text-[10px] ml-1 text-textmuted"></i>
+            <div class="text-right <?php echo $level == 4 ? 'mr-3' : ''; ?>">
+                <span class="text-emerald-500 font-bold <?php echo $level == 4 ? 'text-lg' : ''; ?>">18%</span>
+                <?php if($level < 4) echo '<i class="fa-solid fa-lock text-[10px] ml-1 text-textmuted"></i>'; ?>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+function copyRefLink() {
+    const text = document.getElementById('ref-link-text').innerText.trim();
+    navigator.clipboard.writeText(text).then(() => {
+        alert('Link referral berhasil disalin!');
+    }).catch(err => {
+        console.error('Failed to copy: ', err);
+    });
+}
+</script>

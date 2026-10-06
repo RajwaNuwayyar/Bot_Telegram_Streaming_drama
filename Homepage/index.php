@@ -130,6 +130,7 @@ if (!in_array($page, $allowed_pages)) {
             const handleElem = document.getElementById('tg-handle');
             const popupUsername = document.getElementById('popup-username');
             const popupHandle = document.getElementById('popup-handle');
+            const profileAvatar = document.getElementById('profile-avatar');
 
             if (usernameElem && user) {
                 usernameElem.textContent = user.first_name || user.username;
@@ -142,6 +143,10 @@ if (!in_array($page, $allowed_pages)) {
             }
             if (popupHandle && user && user.username) {
                 popupHandle.textContent = '@' + user.username;
+            }
+            if (profileAvatar && user && user.photo_url) {
+                profileAvatar.src = user.photo_url;
+                profileAvatar.classList.remove('hidden');
             }
 
             // Sync user data to DB
@@ -156,6 +161,14 @@ if (!in_array($page, $allowed_pages)) {
                 .catch(error => console.error('Error syncing user:', error));
             }
         });
+
+        // Global function untuk memutar episode dan mencatat history
+        function playEpisode(episodeId, playLink) {
+            // Hit API history di background tanpa menunggu response
+            fetch('api/add_history.php?episode_id=' + episodeId).catch(e => console.log(e));
+            // Langsung buka link Telegram
+            window.Telegram.WebApp.openTelegramLink(playLink);
+        }
 
     </script>
 </body>
