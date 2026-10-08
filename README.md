@@ -1,176 +1,335 @@
-# 🎬 DramaBot - Telegram Drama Streaming Bot (Golang)
+# 🎬 DramaBot - Fullstack Telegram Drama Streaming & Mini App Platform
 
-DramaBot adalah backend dan bot Telegram untuk layanan streaming drama pendek / mini-drama viral (mirip dengan [@dailydramabot](https://web.telegram.org/k/#@dailydramabot)). Dibangun menggunakan **Golang** dengan arsitektur modular yang cepat, efisien, dan siap berkolaborasi dalam tim pengembangan (Database Engineer, Payment Coordinator, dan Mini App Developer).
+<div align="center">
 
----
+![Go](https://img.shields.io/badge/Golang-1.26-00ADD8?style=for-the-badge&logo=go&logoColor=white)
+![PHP](https://img.shields.io/badge/PHP-8.2+-777BB4?style=for-the-badge&logo=php&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-8.0+-4479A1?style=for-the-badge&logo=mysql&logoColor=white)
+![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
+![Telegram](https://img.shields.io/badge/Telegram_Bot_API-v5-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white)
+![Midtrans](https://img.shields.io/badge/Midtrans-QRIS_Payment-002B49?style=for-the-badge&logo=google-pay&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 
-## 📌 Fitur Utama & Tugas yang Diimplementasikan
+**Platform streaming drama pendek & mini-drama viral terlengkap dengan integrasi Telegram Bot, Telegram Mini App (Webview), Database MySQL v5, dan Gateway Pembayaran QRIS Otomatis.**
 
-- [x] **Pendaftaran Bot**: Panduan lengkap pendaftaran BotFather, konfigurasi deskripsi, foto profil, dan perintah.
-- [x] **Handler Menu `/start`**: Menampilkan menu interaktif:
-  - 📱 **Buka Aplikasi** (Akses langsung ke Telegram Mini App)
-  - ⭐ **Jadi VIP** (Katalog 7 paket langganan)
-  - 📖 **Tutorial** (Panduan lengkap cara nonton & berlangganan)
-  - ❓ **Bantuan** (FAQ & kontak layanan pelanggan)
-  - 👥 **Grup Resmi** (Komunitas resmi)
-- [x] **Channel Post Listener**: Mendengarkan postingan video baru dari channel privat (CDN storage), otomatis mengekstrak judul drama, nomor episode/part, flag `#vip`, lalu menyimpannya ke database.
-- [x] **Logika Pengiriman Video & Pengecekan Akses**:
-  - Pengecekan status VIP pengguna sebelum pengiriman.
-  - Episode gratis langsung dikirim via `CopyMessage` berkecepatan tinggi.
-  - Episode VIP yang diakses pengguna non-VIP otomatis dikunci dan menampilkan tombol ajakan langganan VIP.
-- [x] **Menu "Jadi VIP" (7 Pilihan Durasi)**:
-  - Mengambil data dari tabel `vip_plans`:
-    1. ⚡ 1 Hari Akses - Rp 5.000
-    2. ✨ 3 Hari Nonton - Rp 12.000
-    3. 🎉 7 Hari (1 Minggu) - Rp 25.000
-    4. ⭐ 15 Hari (2 Minggu) - Rp 45.000
-    5. 🔥 30 Hari (1 Bulan Terpopuler) - Rp 75.000
-    6. 💎 90 Hari (3 Bulan Favorit) - Rp 180.000
-    7. 👑 365 Hari (1 Tahun Super VIP) - Rp 500.000
-- [x] **Alur Pembayaran QRIS (Payment Coordinator)**:
-  - Membuat tagihan QRIS instan saat paket VIP dipilih.
-  - Menghasilkan gambar QR Code PNG yang langsung dikirimkan ke chat pengguna.
-  - Menyediakan Webhook `POST /api/payment/webhook` untuk konfirmasi pembayaran otomatis dan perpanjangan VIP secara real-time.
-  - Fitur dev helper `/simulate_pay <trx_code>` untuk simulasi testing.
+[Fitur Utama](#-fitur-utama) • [Arsitektur Sistem](#-arsitektur-sistem) • [Struktur Proyek](#-struktur-direktori) • [Panduan Instalasi](#-panduan-instalasi--konfigurasi) • [Dokumentasi API](#-dokumentasi-api--webhook) • [Perintah Bot](#-daftar-perintah-bot--admin)
+
+</div>
 
 ---
 
-## 🛠️ Struktur Direktori Proyek
+## 🌟 Gambaran Umum (Overview)
+
+**DramaBot** adalah ekosistem hiburan streaming drama pendek modern di dalam Telegram. Sistem ini menggabungkan kecepatan pengiriman video dari **Channel Telegram Privat (CDN Storage)** dengan antarmuka katalog visual interaktif dari **Telegram Mini App (TMA)**. 
+
+### 💡 Keunggulan Utama:
+- 🚀 **High Performance Backend (Go)**: Pemrosesan update bot real-time, event listener channel, dan REST API berkecepatan tinggi.
+- 📱 **Sleek Mini App (PHP + TailwindCSS)**: Tampilan visual modern bertema dark-mode glassmorphism, responsif di semua perangkat mobile, mendukung multi-bahasa (ID/EN).
+- 🔒 **Sistem VIP & Hak Akses Ketat**: Penguncian otomatis episode berbayar dengan verifikasi durasi aktif berbasis waktu (`vip_until`).
+- 💳 **Pembayaran QRIS Otomatis**: Integrasi Midtrans & Generator QRIS instan dengan verifikasi status real-time melalui webhook dan polling.
+- 📊 **Arsitektur Database Teruji**: Skema MySQL v5 Enterprise dilengkapi Stored Procedures (`sp_can_watch`), Functions (`fn_is_vip`), Views, dan Scheduled Events untuk auto-expire.
+
+---
+
+## 🏗️ Arsitektur Sistem
+
+```mermaid
+graph TD
+    User([Pengguna / Penonton])
+    TBot[🤖 Telegram Bot Runtime - Go]
+    TMA[📱 Telegram Mini App - PHP / Tailwind]
+    Chan[📦 Channel Telegram Privat / CDN Storage]
+    DB[(🗄️ MySQL Database v5)]
+    PG[💳 Payment Gateway Midtrans / QRIS]
+
+    %% Alur Bot & Mini App
+    User -->|Kirim /start atau Menu| TBot
+    User -->|Buka Katalog| TMA
+    TMA -->|Deep Link /start watch_ID| TBot
+    TBot -->|Kirim Video CopyMessage| User
+
+    %% Alur Indexing Channel
+    Admin([Admin / Uploader]) -->|Upload Video / #poster| Chan
+    Chan -->|ChannelPost Event Listener| TBot
+    TBot -->|Simpan Metadata Drama & Episode| DB
+
+    %% Alur Mini App & Data
+    TMA -->|Sinkronisasi Profil & Watch History| DB
+    TMA -->|Pencarian & Filter Genre| DB
+
+    %% Alur Pembayaran
+    User -->|Beli Paket VIP| TMA
+    User -->|Menu /vip di Chat| TBot
+    TMA -->|Request QRIS| PG
+    TBot -->|Generate QRIS Payload| DB
+    PG -->|Webhook Callback PAID| TBot
+    PG -->|Webhook Callback PAID| TMA
+    TBot -->|Aktivasi Durasi VIP & Notifikasi User| DB
+```
+
+---
+
+## 🚀 Fitur Utama
+
+### 1. 🤖 Telegram Bot Core
+- **Channel Storage Listener**: Otomatis mendeteksi video baru dari channel privat, mengekstrak judul drama, nomor part/episode, dan status VIP.
+- **Admin Channel Commands**: Manajemen episode langsung dari channel tanpa buka database:
+  - `#hapus_episode <message_id>`: Menghapus data episode dari database.
+  - `#hapus_drama <Judul Drama>`: Menghapus seluruh judul drama dan relasinya secara permanen.
+  - `#set_poster <Judul> | <file_id>`: Memperbarui poster/thumbnail drama.
+  - Unggah foto dengan tag `#poster` untuk auto-update thumbnail drama.
+- **Pengiriman Video Berkecepatan Tinggi**: Menggunakan metode `CopyMessage` dari channel privat tanpa watermark/forward header dan fallback `FileID`.
+- **Navigasi Episode Terpadu**: Tombol interaktif *Episode Sebelumnya*, *Episode Selanjutnya*, dan tombol pintas kembali ke Mini App.
+
+### 2. 📱 Telegram Mini App (TMA Frontend)
+- **Katalog & Featured Banner**: Carousel drama unggulan dengan rating bintang, jumlah tayang, dan tag genre.
+- **Pencarian Real-Time & Filter Genre**: Pencarian instan berdasarkan judul dan kategori dengan debounce otomatis.
+- **Riwayat Tontonan (Watch History)**: Melacak progress tontonan (*Sedang Ditonton* vs *Selesai*) dengan fitur hapus riwayat.
+- **Sistem Permintaan Drama (Request Drama)**: Formulir pengajuan judul drama baru dengan kuota harian dan notifikasi instan langsung ke Telegram Admin.
+- **Program Afiliasi (Referral & Komisi)**: Sistem tingkatan komisi berjenjang (*Level 1 - Level 4*) dengan saldo koin dan tautan referral unik.
+- **Multi-Bahasa (i18n)**: Pilihan bahasa instan antara Bahasa Indonesia (ID) dan English (EN).
+
+### 3. 👑 Manajemen VIP & Pembayaran QRIS
+- **7 Durasi Paket Langganan**:
+  1. ⚡ **VIP 1 Hari** - Rp 3.000 / Rp 5.000
+  2. ✨ **VIP 3 Hari** - Rp 6.000 / Rp 12.000
+  3. 🎉 **VIP 7 Hari** - Rp 10.000 / Rp 25.000
+  4. ⭐ **VIP 15 Hari** - Rp 20.000 / Rp 45.000
+  5. 🔥 **VIP 30 Hari (Best Value)** - Rp 35.000 / Rp 75.000
+  6. 💎 **VIP 90 Hari** - Rp 90.000 / Rp 180.000
+  7. 👑 **VIP 365 Hari (1 Tahun)** - Rp 300.000 / Rp 500.000
+- **Modal QRIS Interaktif**: Countdown timer 15 menit, live polling status pembayaran otomatis, dan panduan transfer bank/e-wallet.
+- **Simulasi Pengujian Pembayaran**: Perintah bot `/simulate_pay <trx_code>` untuk kemudahan testing tanpa saldo riil.
+
+---
+
+## 📁 Struktur Direktori
 
 ```text
-DramaBot/
+Bot_Telegram_Streaming_drama/
 ├── cmd/
 │   └── bot/
-│       └── main.go                 # Entry point bot dan server HTTP
+│       └── main.go                     # Entry point bot Telegram & server HTTP
 ├── internal/
 │   ├── bot/
-│   │   ├── bot.go                  # Core controller Telegram Bot
-│   │   ├── handlers_command.go     # Handler perintah slash (/start, /vip, dll)
-│   │   ├── handlers_channel.go     # Listener channel privat (video indexer)
-│   │   ├── handlers_channel_test.go# Unit test parser caption
-│   │   ├── handlers_callback.go    # Handler tombol inline keyboard & QRIS flow
-│   │   ├── handlers_video.go       # Pengecekan VIP & pengiriman video
-│   │   ├── keyboards.go            # Konstruktor tombol inline & reply keyboard
-│   │   └── messages.go             # Template teks pesan & caption
+│   │   ├── bot.go                      # Core lifecycle Telegram Bot & Update loop
+│   │   ├── handlers_callback.go        # Handler tombol inline keyboard & QRIS
+│   │   ├── handlers_channel.go         # Channel post listener, parser & admin command
+│   │   ├── handlers_channel_test.go    # Unit test caption & poster parser
+│   │   ├── handlers_command.go         # Handler slash commands (/start, /vip, dll)
+│   │   ├── handlers_video.go           # Logika gatekeeper VIP & pengiriman video
+│   │   ├── keyboards.go                # Konstruktor inline markup & reply keyboard
+│   │   └── messages.go                 # Template pesan, teks panduan, & notifikasi
 │   ├── config/
-│   │   └── config.go               # Manajemen konfigurasi environment (.env)
+│   │   └── config.go                   # Pemuat variabel lingkungan .env
 │   ├── database/
-│   │   ├── models.go               # Model data (User, VIPPlan, Episode, Trx)
-│   │   ├── repository.go           # Kontrak antarmuka (interface) database
-│   │   ├── sqlite.go               # Driver database SQLite & auto-seed
-│   │   └── sqlite_test.go          # Unit test operasi database
+│   │   ├── models.go                   # Model struct data (User, Drama, Episode, Trx)
+│   │   ├── mysql.go                    # Implementasi repository database MySQL
+│   │   ├── repository.go               # Interface kontrak abstraksi database
+│   │   ├── sqlite.go                   # Implementasi SQLite (development/fallback)
+│   │   └── sqlite_test.go              # Unit test repositori SQLite
 │   ├── payment/
-│   │   └── payment.go              # Layanan integrasi Payment Coordinator & QR generator
+│   │   └── payment.go                  # Layanan QRIS generator & Payment Coordinator
 │   └── server/
-│       └── server.go               # HTTP API untuk Webhook & Mini App
-├── .env.example                    # Contoh template konfigurasi
-├── .env                            # File konfigurasi aktif
-├── go.mod
-└── README.md
+│       └── server.go                   # HTTP API Server (Webhook & Mini App integration)
+├── Homepage/                           # Telegram Mini App Frontend (Webview)
+│   ├── index.php                       # Single Entry Point Mini App & routing
+│   ├── api/
+│   │   ├── add_history.php             # API pencatatan riwayat tontonan
+│   │   ├── clear_history.php           # API pembersihan riwayat tontonan
+│   │   ├── poster.php                  # Proxy loader gambar poster dari Telegram
+│   │   ├── search.php                  # API pencarian drama & filter kategori
+│   │   ├── submit_request.php          # API pengajuan request drama baru
+│   │   └── user_sync.php               # API sinkronisasi data Telegram User ke DB
+│   ├── includes/
+│   │   ├── db_queries.php              # Kumpulan fungsi query database PHP
+│   │   ├── nav.php                     # Navigasi bawah (Bottom Navigation Bar)
+│   │   └── qris_modal.php              # Komponen modal pembayaran QRIS & timer
+│   ├── js/
+│   │   └── i18n.js                     # Sistem translasi multi-bahasa (ID / EN)
+│   └── pages/
+│       ├── home.php                    # Halaman utama katalog drama & banner
+│       ├── history.php                 # Halaman riwayat tontonan
+│       ├── vip.php                     # Halaman paket langganan VIP
+│       ├── profile.php                 # Halaman profil akun & preferensi bahasa
+│       ├── affiliate.php               # Halaman program komisi & referral
+│       └── request.php                 # Halaman formulir request drama
+├── payment/                            # Gateway Pembayaran Midtrans (PHP)
+│   ├── check_status.php                # Endpoint cek status transaksi QRIS
+│   ├── midtrans_config.php             # Konfigurasi Midtrans Server Key
+│   ├── request_qris.php                # Endpoint inisialisasi QRIS Midtrans
+│   └── webhook.php                     # Handler notifikasi webhook Midtrans
+├── database/                           # Skema & Prosedur SQL
+│   ├── schema_v5_final.sql             # Skema DDL tabel MySQL v5 Final
+│   ├── procedures.sql                  # Stored Procedures & Functions
+│   ├── scheduled_events.sql            # Event Scheduler auto-expire VIP
+│   ├── seed_data.sql                   # Data awal (Kategori, Paket VIP, Drama)
+│   ├── backup_daily.bat                # Script automasi backup harian MySQL
+│   └── koneksi.php                     # Koneksi database PDO untuk PHP
+├── .env.example                        # Template konfigurasi environment
+├── .env                                # Konfigurasi aktif (rahasia)
+├── Dockerfile                          # Konfigurasi container Docker multi-stage
+├── docker-compose.yml                  # Orkestrasi container Docker
+├── go.mod                              # Modul dependencies Golang
+└── README.md                           # Dokumentasi resmi proyek
 ```
 
 ---
 
-## 🚀 Panduan Setup & Konfigurasi
+## 🛠️ Panduan Instalasi & Konfigurasi
 
-### 1. Buat Bot di @BotFather
-1. Buka Telegram dan cari bot [@BotFather](https://t.me/BotFather).
-2. Kirim perintah `/newbot` dan ikuti petunjuk untuk menentukan **Nama Bot** dan **Username Bot**.
-3. Simpan **Bot Token** yang diberikan (misal: `7123456789:AAFlM_ExampleTokenStringHere`).
-4. Atur informasi bot:
-   - `/setdescription`: Tulis deskripsi yang muncul sebelum user klik start.
-   - `/setuserpic`: Unggah foto profil logo DramaBot.
-   - `/setcommands`: Daftarkan daftar perintah bot:
-     ```text
-     start - Tampilkan menu utama & katalog drama
-     vip - Beli atau perpanjang paket VIP (7 pilihan)
-     tutorial - Panduan cara nonton & berlangganan
-     bantuan - Pusat bantuan & FAQ
-     status - Cek masa aktif akun VIP Anda
-     ```
-
-### 2. Setup Channel Privat Penyimpanan Video
-1. Buat **Channel Baru** di Telegram (pilih tipe **Privat**).
-2. Masukkan Bot Anda ke dalam Channel tersebut sebagai **Administrator** dengan izin minimal: *Post Messages*.
-3. Dapatkan **Channel ID** (biasanya berupa angka minus diawali `-100`, contoh: `-1001234567890`).
-   > *Tips:* Anda bisa meneruskan salah satu pesan dari channel ke bot [@userinfobot](https://t.me/userinfobot) atau [@JsonDumpBot](https://t.me/JsonDumpBot) untuk mengetahui Channel ID.
-4. Unggah video drama ke channel privat dengan caption terstruktur, contoh:
-   - `The Secret CEO - Episode 01` (Otomatis gratis)
-   - `The Secret CEO - Episode 03 #vip` (Otomatis VIP)
-   - `[Dendam Sang Istri] Part 5 #vip`
-
-### 3. Konfigurasi File `.env`
-Buka file `.env` di root direktori dan sesuaikan nilainya:
-```env
-BOT_TOKEN=7123456789:AAFlM_YourActualBotTokenHere
-BOT_USERNAME=dailydramabot
-PRIVATE_CHANNEL_ID=-1001234567890
-WEB_APP_URL=https://t.me/dailydramabot/app
-OFFICIAL_GROUP_URL=https://t.me/dailydrama_official
-ADMIN_USER_ID=123456789
-SERVER_PORT=8080
-DATABASE_PATH=dramabot.db
-```
+### 📋 Prasyarat Sistem
+- **Golang**: v1.22 atau lebih baru
+- **PHP**: v8.1 atau lebih baru (dengan ekstensi `pdo_mysql`, `curl`)
+- **MySQL**: v8.0 atau MariaDB 10.5+
+- **Web Server**: Apache / Nginx / PHP Built-in Server (atau tunneling ngrok)
+- **Akun Telegram** & Token Bot dari [@BotFather](https://t.me/BotFather)
 
 ---
 
-## 💻 Menjalankan Aplikasi
-
-### Menjalankan Unit Test
-Pastikan seluruh logika parser dan database berjalan sempurna:
-```powershell
-go test -v ./...
-```
-
-### Menjalankan Bot
-```powershell
-go run ./cmd/bot/main.go
-```
-
----
-
-## 🤝 Integrasi Antar Tim Magang
-
-### 1. Bersama Database Engineer
-- File interface telah disiapkan di [`internal/database/repository.go`](file:///c:/projek%20magang/DramaBot/internal/database/repository.go).
-- Database default menggunakan SQLite (`dramabot.db`) yang telah dilengkapi migrasi otomatis dan seeding 7 paket VIP.
-- Jika Database Engineer ingin menghubungkan ke PostgreSQL / MySQL, cukup buat implementasi struct baru yang memenuhi interface `Repository`.
-
-### 2. Bersama Mini App Developer
-Mini App dapat memicu pengiriman episode ke chat pengguna dengan 2 metode:
-1. **Deep Link URL (Direkomendasikan)**:
-   Saat tombol "Tonton Episode" ditekan di Mini App:
-   ```javascript
-   // Buka bot dengan parameter deep link:
-   window.Telegram.WebApp.openTelegramLink("https://t.me/dailydramabot?start=watch_" + episodeId);
+### 1️⃣ Konfigurasi Database MySQL
+1. Buat database baru di MySQL:
+   ```sql
+   CREATE DATABASE bot_drama CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
    ```
-2. **REST API Endpoint**:
-   Backend Mini App dapat memanggil endpoint HTTP bot:
-   - **Method**: `POST`
-   - **URL**: `http://localhost:8080/api/send-episode`
-   - **Body**:
-     ```json
-     {
-       "telegram_id": 123456789,
-       "episode_id": 10
-     }
-     ```
-3. **Membaca Katalog Paket VIP**:
-   - **Method**: `GET`
-   - **URL**: `http://localhost:8080/api/plans`
+2. Impor berkas SQL secara berurutan:
+   ```bash
+   mysql -u root -p bot_drama < database/schema_v5_final.sql
+   mysql -u root -p bot_drama < database/seed_data.sql
+   mysql -u root -p bot_drama < database/procedures.sql
+   mysql -u root -p bot_drama < database/scheduled_events.sql
+   ```
 
-### 3. Bersama Payment Coordinator
-- Alur pembuatan QRIS ditangani di [`internal/payment/payment.go`](file:///c:/projek%20magang/DramaBot/internal/payment/payment.go).
-- Bot mengirimkan gambar QR Code PNG beresolusi tinggi langsung ke chat pengguna.
-- Setelah pengguna membayar, sistem Payment Gateway / Coordinator mengirim webhook ke Bot:
-  - **Method**: `POST`
-  - **URL**: `http://localhost:8080/api/payment/webhook`
-  - **Body**:
-    ```json
-    {
-      "transaction_code": "TRX12345",
-      "status": "PAID"
-    }
-    ```
-  - Bot akan otomatis mengaktifkan status VIP user di database dan mengirimkan pesan ucapan selamat ke Telegram user secara real-time!
-- **Testing Pembayaran**: Gunakan perintah Telegram `/simulate_pay TRX12345` untuk menguji alur pembayaran tanpa transfer riil.
+---
+
+### 2️⃣ Konfigurasi File Lingkungan (`.env`)
+Salin file template `.env.example` menjadi `.env`, lalu lengkapi isinya:
+```bash
+cp .env.example .env
+```
+
+Sesuaikan nilai variabel:
+```env
+# Token bot resmi dari Telegram @BotFather
+BOT_TOKEN=1234567890:ABCdefGHIjklMNOpqrSTUvwxYZ
+
+# Username bot Telegram tanpa tanda @
+BOT_USERNAME=TreadLessBot
+
+# ID Channel Privat penyimpanan video (diawali -100)
+PRIVATE_CHANNEL_ID=-1001234567890
+
+# URL Webhook Mini App (gunakan HTTPS / URL Ngrok untuk pengujian)
+WEB_APP_URL=https://your-domain.com/Homepage/index.php
+
+# Grup / Channel Resmi Komunitas
+OFFICIAL_GROUP_URL=https://t.me/DramaBotGroup
+
+# ID Telegram Admin untuk menerima laporan upload & request
+ADMIN_USER_ID=123456789
+
+# Port HTTP Server Go
+SERVER_PORT=8080
+
+# Koneksi Database MySQL Backend Go
+DATABASE_DSN=root:password@tcp(localhost:3306)/bot_drama?parseTime=true&charset=utf8mb4
+
+# Server Key Midtrans Payment Gateway
+MIDTRANS_SERVER_KEY=SB-Mid-server-xxxxxxxxxxxxxxxxx
+```
+
+---
+
+### 3️⃣ Menjalankan Bot & Backend (Golang)
+
+1. Unduh seluruh dependensi Go:
+   ```bash
+   go mod download
+   ```
+2. Jalankan unit test untuk memastikan integritas:
+   ```bash
+   go test -v ./...
+   ```
+3. Jalankan bot:
+   ```bash
+   go run ./cmd/bot/main.go
+   ```
+
+---
+
+### 4️⃣ Menjalankan Mini App Frontend (PHP)
+
+Jalankan built-in web server PHP dari direktori proyek:
+```bash
+php -S localhost:8000
+```
+Untuk menguji di aplikasi Telegram pada perangkat ponsel, gunakan tunneling HTTPS seperti **ngrok**:
+```bash
+ngrok http 8000
+```
+Lalu perbarui `WEB_APP_URL` di file `.env` dengan URL HTTPS dari ngrok.
+
+---
+
+### 5️⃣ Menjalankan via Docker (Opsional)
+
+Aplikasi dapat dijalankan secara terisolasi menggunakan Docker Compose:
+```bash
+docker-compose up --build -d
+```
+
+---
+
+## 📡 Dokumentasi API & Webhook
+
+### 1. HTTP Server Bot (Golang - Port 8080)
+
+| Method | Endpoint | Deskripsi | Payload / Parameter |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/payment/webhook` | Webhook konfirmasi pembayaran QRIS | `{"transaction_code": "TRX123", "status": "PAID"}` |
+| `POST` | `/api/send-episode` | Kirim video episode langsung ke chat user | `{"telegram_id": 12345, "episode_id": 1}` |
+| `GET`  | `/api/plans` | Ambil daftar paket VIP aktif format JSON | *None* |
+| `GET`  | `/api/health` | Healthcheck status server | *None* |
+
+### 2. Mini App API (PHP)
+
+| Method | Endpoint | Deskripsi |
+| :--- | :--- | :--- |
+| `GET`  | `Homepage/api/search.php?q=keyword&cat=genre` | Pencarian & filter katalog drama |
+| `GET`  | `Homepage/api/poster.php?fid=TELEGRAM_FILE_ID` | Proxy image loader untuk thumbnail Telegram |
+| `POST` | `Homepage/api/user_sync.php` | Sinkronisasi profil user Telegram ke DB |
+| `GET`  | `Homepage/api/add_history.php?episode_id=1` | Catat progress tontonan pengguna |
+| `POST` | `Homepage/api/submit_request.php` | Pengajuan request drama baru ke admin |
+| `GET`  | `payment/request_qris.php` | Request pembuatan invoice QRIS Midtrans |
+| `GET`  | `payment/check_status.php?order_id=TRX` | Polling cek status pembayaran QRIS |
+| `POST` | `payment/webhook.php` | Webhook listener callback Midtrans |
+
+---
+
+## ⌨️ Daftar Perintah Bot & Admin
+
+### 👤 Perintah Pengguna (User Commands)
+- `/start` : Membuka menu utama, cek status akun, dan tautan ke Mini App.
+- `/start watch_<episode_id>` : Deep link instan untuk memutar episode tertentu.
+- `/vip` : Menampilkan katalog 7 pilihan paket langganan VIP.
+- `/status` : Memeriksa sisa masa aktif langganan VIP akun.
+- `/tutorial` : Panduan langkah demi langkah cara menonton dan berlangganan.
+- `/bantuan` : Pusat informasi bantuan dan FAQ.
+
+### 🛡️ Perintah Admin & Channel (Admin Controls)
+- `/set_poster <Judul Drama> | <File_ID>` : Menyetel poster drama via DM admin.
+- `/simulate_pay <TRX_CODE>` : Simulasi pelunasan transaksi untuk pengujian.
+- `#hapus_episode <message_id>` : Ditulis di channel privat untuk menghapus episode dari database.
+- `#hapus_drama <Judul Drama>` : Ditulis di channel privat untuk menghapus seluruh serial drama.
+- `#set_poster <Judul> | <file_id>` : Ditulis di channel privat untuk update poster drama.
+- **Upload Gambar + Caption `#poster`** : Otomatis memperbarui thumbnail serial drama di database dan Mini App.
+
+---
+
+## 📄 Lisensi & Kontribusi
+
+Proyek ini dikembangkan untuk kebutuhan platform streaming drama interaktif Telegram. Silakan lakukan *fork*, buat *feature branch*, dan ajukan *Pull Request* untuk berkontribusi.
+
+<div align="center">
+Made with ❤️ by DramaBot Engineering Team
+</div>
