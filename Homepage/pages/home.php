@@ -96,7 +96,7 @@ $bot_username = "TreadLessBot";
                 </div>
             <?php else: ?>
                 <?php foreach ($featuredBanners as $idx => $fb): 
-                    $bannerPoster = getPosterUrl($fb['poster_url'], $idx, $fb['title']);
+                    $bannerPoster = getPosterUrl($fb['poster_url'], $idx);
                     $firstEpId = !empty($fb['first_episode_id']) ? $fb['first_episode_id'] : $fb['id'];
                     $playLink = "https://t.me/{$bot_username}?start=watch_{$firstEpId}";
                 ?>
@@ -175,7 +175,7 @@ $bot_username = "TreadLessBot";
             </div>
         <?php else: ?>
             <?php foreach ($allDramas as $idx => $d): 
-                $poster = getPosterUrl($d['poster_url'], $idx, $d['title']);
+                $poster = getPosterUrl($d['poster_url'], $idx);
                 $epCount = (int)$d['total_episodes'];
                 $catName = !empty($d['category_name']) ? $d['category_name'] : 'Drama';
                 $catSlug = !empty($d['category_slug']) ? $d['category_slug'] : 'drama';
@@ -252,6 +252,14 @@ $bot_username = "TreadLessBot";
 <script>
 let currentGenre = 'all';
 let searchTimeout = null;
+let originalCardsHTML = '';
+
+document.addEventListener('DOMContentLoaded', () => {
+    const grid = document.getElementById('dramas-grid');
+    if (grid) {
+        originalCardsHTML = grid.innerHTML;
+    }
+});
 
 function filterDramasByGenre(slug, btn) {
     currentGenre = slug;
@@ -276,9 +284,12 @@ function filterDramasBySearch() {
         clearBtn.classList.add('hidden');
     }
     
-    // Debounce search
-    if(searchTimeout) clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(applyFilters, 400);
+    // 1. Jalankan pencarian instan pada elemen DOM yang ada
+    instantClientFilter();
+
+    // 2. Debounce query ke server untuk database penuh
+    if (searchTimeout) clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(applyFilters, 300);
 }
 
 function clearDramaSearch() {
@@ -288,27 +299,61 @@ function clearDramaSearch() {
     applyFilters();
 }
 
+// Pencarian cepat instan di sisi klien
+function instantClientFilter() {
+    const searchVal = document.getElementById('drama-search-input').value.trim().toLowerCase();
+    const cards = document.querySelectorAll('#dramas-grid .drama-card');
+    if (!cards || cards.length === 0) return;
+
+    let visibleCount = 0;
+    cards.forEach(card => {
+        const title = (card.getAttribute('data-title') || '').toLowerCase();
+        const cat = (card.getAttribute('data-category') || '').toLowerCase();
+
+        const matchSearch = (searchVal === '' || title.includes(searchVal));
+        const matchGenre = (currentGenre === 'all' || cat === currentGenre.toLowerCase());
+
+        if (matchSearch && matchGenre) {
+            card.style.display = '';
+            visibleCount++;
+        } else {
+            card.style.display = 'none';
+        }
+    });
+
+    const countLabel = document.getElementById('drama-count-label');
+    if (countLabel) {
+        countLabel.textContent = visibleCount + ' Drama';
+    }
+}
+
+// Pencarian lengkap ke server API
 function applyFilters() {
     const searchVal = document.getElementById('drama-search-input').value.trim();
     const grid = document.getElementById('dramas-grid');
-    
-    // Show loading state
-    grid.innerHTML = '<div class="col-span-2 py-8 text-center text-accent"><i class="fa-solid fa-circle-notch fa-spin text-2xl"></i></div>';
-    
-    fetch(`api/search.php?q=${encodeURIComponent(searchVal)}&cat=${encodeURIComponent(currentGenre)}`)
-        .then(res => res.text())
+    if (!grid) return;
+
+    const apiUrl = `api/search.php?q=${encodeURIComponent(searchVal)}&cat=${encodeURIComponent(currentGenre)}`;
+
+    fetch(apiUrl)
+        .then(res => {
+            if (!res.ok) throw new Error('Network error: ' + res.status);
+            return res.text();
+        })
         .then(html => {
-            grid.innerHTML = html;
-            const countLabel = document.getElementById('drama-count-label');
-            if (countLabel) {
-                // Approximate count or just say "Results"
+            if (html.trim().length > 0) {
+                grid.innerHTML = html;
                 const count = (html.match(/class="drama-card/g) || []).length;
-                countLabel.textContent = count + ' Drama';
+                const countLabel = document.getElementById('drama-count-label');
+                if (countLabel) {
+                    countLabel.textContent = count + ' Drama';
+                }
             }
         })
         .catch(err => {
-            console.error('Error fetching search results:', err);
-            grid.innerHTML = '<div class="col-span-2 text-center text-red-500 text-xs py-4">Gagal memuat drama.</div>';
+            console.warn('Server search fallback to client filtering:', err);
+            // Jika request gagal, gunakan fallback filter client-side tanpa merusak tampilan
+            instantClientFilter();
         });
 }
 </script>

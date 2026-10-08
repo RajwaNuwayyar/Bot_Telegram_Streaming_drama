@@ -6,15 +6,21 @@ require_once __DIR__ . '/../includes/db_queries.php';
 $q = isset($_GET['q']) ? trim($_GET['q']) : '';
 $cat = isset($_GET['cat']) ? trim($_GET['cat']) : 'all';
 
+// Baca bot username dari env jika ada
+$bot_username = isset($_ENV['BOT_USERNAME']) && !empty($_ENV['BOT_USERNAME']) ? $_ENV['BOT_USERNAME'] : 'TreadLessBot';
+
 $category_id = null;
-if ($cat !== 'all') {
-    $stmt = $pdo->prepare("SELECT id FROM categories WHERE slug = ?");
-    $stmt->execute([$cat]);
-    $category_id = $stmt->fetchColumn();
+if ($pdo && $cat !== 'all' && !empty($cat)) {
+    try {
+        $stmt = $pdo->prepare("SELECT id FROM categories WHERE slug = ?");
+        $stmt->execute([$cat]);
+        $category_id = $stmt->fetchColumn();
+    } catch (Exception $e) {
+        $category_id = null;
+    }
 }
 
-$dramas = getDramas($pdo, 24, $category_id, $q);
-$bot_username = "TreadLessBot"; // Should be synced with home.php or env
+$dramas = ($pdo) ? getDramas($pdo, 24, $category_id, $q) : [];
 
 if (empty($dramas)) {
     echo '<div class="col-span-2 py-16 flex flex-col items-center justify-center text-center">';
@@ -28,7 +34,7 @@ if (empty($dramas)) {
 }
 
 foreach ($dramas as $idx => $d) {
-    $poster = getPosterUrl($d['poster_url'], $idx, $d['title']);
+    $poster = getPosterUrl($d['poster_url'], $idx);
     $epCount = (int)$d['total_episodes'];
     $catName = !empty($d['category_name']) ? $d['category_name'] : 'Drama';
     $catSlug = !empty($d['category_slug']) ? $d['category_slug'] : 'drama';
