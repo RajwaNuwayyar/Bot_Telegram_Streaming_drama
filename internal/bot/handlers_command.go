@@ -35,6 +35,9 @@ func (b *Bot) HandleCommand(msg *tgbotapi.Message) {
 	case "set_poster":
 		// Admin mengatur poster drama via command
 		b.handleSetPoster(telegramID, args)
+	case "hapus_poster", "delete_poster":
+		// Admin menghapus/mereset poster drama via command
+		b.handleDeletePoster(telegramID, args)
 	default:
 		// Default tampilkan menu utama
 		b.handleStart(msg, "")
@@ -214,6 +217,38 @@ func (b *Bot) handleSetPoster(telegramID int64, args string) {
 	log.Printf("[Admin] Poster drama '%s' berhasil diupdate oleh admin %d (FileID: %s)\n", title, telegramID, fileID)
 	successMsg := tgbotapi.NewMessage(telegramID,
 		fmt.Sprintf("✅ *Poster drama berhasil diperbarui!*\n\n🎬 *Judul:* %s\n🔑 *File ID:* `%s`\n💾 Perubahan telah tersimpan di database.", title, fileID))
+	successMsg.ParseMode = "Markdown"
+	_, _ = b.api.Send(successMsg)
+}
+
+func (b *Bot) handleDeletePoster(telegramID int64, args string) {
+	if b.cfg.AdminUserID == 0 || telegramID != b.cfg.AdminUserID {
+		msg := tgbotapi.NewMessage(telegramID, "⛔ Perintah ini hanya bisa digunakan oleh admin.")
+		_, _ = b.api.Send(msg)
+		return
+	}
+
+	title := strings.TrimSpace(args)
+	if title == "" {
+		msg := tgbotapi.NewMessage(telegramID,
+			"⚠️ *Format salah.*\n\nGunakan: `/hapus_poster <Judul Drama>`\n\n"+
+				"💡 *Contoh:*\n`/hapus_poster GrandBlue`\n`/hapus_poster Charlotte`\n\n"+
+				"Poster akan direset kembali ke tampilan default.")
+		msg.ParseMode = "Markdown"
+		_, _ = b.api.Send(msg)
+		return
+	}
+
+	if err := b.repo.DeleteDramaPoster(title); err != nil {
+		log.Printf("[Admin] Gagal hapus poster drama '%s': %v\n", title, err)
+		msg := tgbotapi.NewMessage(telegramID, fmt.Sprintf("❌ Gagal menghapus poster: %v", err))
+		_, _ = b.api.Send(msg)
+		return
+	}
+
+	log.Printf("[Admin] Poster drama '%s' berhasil dihapus oleh admin %d\n", title, telegramID)
+	successMsg := tgbotapi.NewMessage(telegramID,
+		fmt.Sprintf("🗑️ *Poster drama berhasil dihapus!*\n\n🎬 *Judul:* %s\n💾 Poster telah direset kembali ke tampilan default di Mini App.", title))
 	successMsg.ParseMode = "Markdown"
 	_, _ = b.api.Send(successMsg)
 }

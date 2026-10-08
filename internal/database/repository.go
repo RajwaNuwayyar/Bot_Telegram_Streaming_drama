@@ -23,6 +23,7 @@ type Repository interface {
 	DeleteEpisodeByMessageID(messageID int) error                  // Hapus episode saat video dihapus dari channel
 	DeleteDramaByTitle(dramaTitle string) (int64, error)           // Hapus seluruh drama beserta semua episodenya berdasarkan judul
 	UpdateDramaPoster(dramaTitle string, posterFileID string) error // Update thumbnail/poster drama dari upload channel tag #poster
+	DeleteDramaPoster(dramaTitle string) error                      // Hapus/reset poster drama kembali ke default
 
 	// Transactions
 	CreateTransaction(tx *Transaction) error

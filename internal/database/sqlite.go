@@ -445,3 +445,22 @@ func (r *SQLiteRepo) DeleteDramaByTitle(dramaTitle string) (int64, error) {
 	return epDeleted, nil
 }
 
+// DeleteDramaPoster menghapus/mereset kolom poster_url menjadi NULL pada drama berdasarkan judul atau slug.
+func (r *SQLiteRepo) DeleteDramaPoster(dramaTitle string) error {
+	dramaTitle = strings.TrimSpace(dramaTitle)
+	if dramaTitle == "" {
+		return fmt.Errorf("judul drama tidak boleh kosong")
+	}
+	slug := strings.ToLower(strings.ReplaceAll(dramaTitle, " ", "-"))
+
+	res, err := r.db.Exec(`UPDATE dramas SET poster_url = NULL WHERE LOWER(title) = LOWER(?) OR slug = ?`, dramaTitle, slug)
+	if err != nil {
+		return fmt.Errorf("gagal menghapus poster drama '%s': %w", dramaTitle, err)
+	}
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("drama dengan judul '%s' tidak ditemukan di database", dramaTitle)
+	}
+	return nil
+}
+

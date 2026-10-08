@@ -411,6 +411,40 @@ func (b *Bot) handleChannelAdminCommand(post *tgbotapi.Message) bool {
 		return true
 	}
 
+	// Perintah: #hapus_poster <Judul>
+	if strings.HasPrefix(strings.ToLower(text), "#hapus_poster") || strings.HasPrefix(strings.ToLower(text), "#delete_poster") {
+		prefixLen := len("#hapus_poster")
+		if strings.HasPrefix(strings.ToLower(text), "#delete_poster") {
+			prefixLen = len("#delete_poster")
+		}
+		args := strings.TrimSpace(text[prefixLen:])
+		var replyText string
+
+		if args == "" {
+			replyText = "⚠️ *Format salah.*\n\nGunakan: `#hapus_poster <Judul Drama>`\n\n💡 *Contoh:*\n`#hapus_poster Grand Blue`\n`#hapus_poster Charlotte`"
+		} else {
+			if err := b.repo.DeleteDramaPoster(args); err != nil {
+				log.Printf("[ChannelAdmin] Gagal hapus poster '%s': %v\n", args, err)
+				replyText = fmt.Sprintf("❌ Gagal menghapus poster: %v", err)
+			} else {
+				log.Printf("[ChannelAdmin] Poster '%s' berhasil dihapus via channel command\n", args)
+				replyText = fmt.Sprintf("🗑️ *Poster drama berhasil dihapus!*\n\n🎬 *Judul:* %s\n💾 Poster telah direset kembali ke tampilan default di Mini App.", args)
+			}
+		}
+
+		// Hapus pesan perintah dari channel agar channel tetap bersih
+		deleteMsg := tgbotapi.NewDeleteMessage(post.Chat.ID, post.MessageID)
+		_, _ = b.api.Request(deleteMsg)
+
+		// Kirim hasil ke admin via DM
+		if b.cfg.AdminUserID != 0 {
+			notif := tgbotapi.NewMessage(b.cfg.AdminUserID, replyText)
+			notif.ParseMode = "Markdown"
+			_, _ = b.api.Send(notif)
+		}
+		return true
+	}
+
 	return false
 }
 
