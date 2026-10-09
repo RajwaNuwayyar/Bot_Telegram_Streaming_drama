@@ -296,13 +296,33 @@ function clearDramaSearch() {
     const input = document.getElementById('drama-search-input');
     input.value = '';
     document.getElementById('search-clear-btn').classList.add('hidden');
+    
+    // Pulihkan daftar drama awal secara instan jika ada
+    const grid = document.getElementById('dramas-grid');
+    if (grid && originalCardsHTML && currentGenre === 'all') {
+        grid.innerHTML = originalCardsHTML;
+        const count = (originalCardsHTML.match(/class="drama-card/g) || []).length;
+        const countLabel = document.getElementById('drama-count-label');
+        if (countLabel) countLabel.textContent = count + ' Drama';
+        return;
+    }
     applyFilters();
 }
 
 // Pencarian cepat instan di sisi klien
 function instantClientFilter() {
     const searchVal = document.getElementById('drama-search-input').value.trim().toLowerCase();
-    const cards = document.querySelectorAll('#dramas-grid .drama-card');
+    const grid = document.getElementById('dramas-grid');
+    if (!grid) return;
+
+    let cards = grid.querySelectorAll('.drama-card');
+    
+    // Jika kartu sebelumnya digantikan div 'Tidak Ditemukan', pulihkan dari originalCardsHTML
+    if (cards.length === 0 && originalCardsHTML && originalCardsHTML.includes('drama-card')) {
+        grid.innerHTML = originalCardsHTML;
+        cards = grid.querySelectorAll('.drama-card');
+    }
+
     if (!cards || cards.length === 0) return;
 
     let visibleCount = 0;
