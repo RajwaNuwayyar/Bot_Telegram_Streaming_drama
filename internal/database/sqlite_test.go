@@ -130,4 +130,34 @@ func TestSQLiteRepository(t *testing.T) {
 	if paidTx.Status != TxStatusPaid {
 		t.Errorf("Status transaksi harus PAID")
 	}
+
+	// 5. Uji UpdateDramaTitle
+	updatedCount, err := repo.UpdateDramaTitle("CEO Rahasia", "CEO Miliarder Rahasia")
+	if err != nil {
+		t.Fatalf("Gagal update judul drama: %v", err)
+	}
+	if updatedCount != 3 {
+		t.Errorf("Jumlah episode terupdate = %d, diharapkan 3", updatedCount)
+	}
+
+	updatedEp2, err := repo.GetEpisodeByTitleAndNumber("CEO Miliarder Rahasia", 2)
+	if err != nil || updatedEp2 == nil {
+		t.Fatalf("Episode dengan judul drama baru tidak ditemukan: %v", err)
+	}
+	if updatedEp2.DramaTitle != "CEO Miliarder Rahasia" {
+		t.Errorf("Judul drama = %q, diharapkan %q", updatedEp2.DramaTitle, "CEO Miliarder Rahasia")
+	}
+
+	// 6. Uji UpdateEpisodeDetailsByMessageID
+	err = repo.UpdateEpisodeDetailsByMessageID(101, "CEO Terhebat", 1, true, "CEO Terhebat - Episode 1 #vip")
+	if err != nil {
+		t.Fatalf("Gagal update detail episode: %v", err)
+	}
+	ep1Updated, err := repo.GetEpisodeByTitleAndNumber("CEO Terhebat", 1)
+	if err != nil || ep1Updated == nil {
+		t.Fatalf("Episode 1 setelah diedit tidak ditemukan: %v", err)
+	}
+	if !ep1Updated.IsVIP {
+		t.Errorf("Episode 1 harusnya VIP true")
+	}
 }

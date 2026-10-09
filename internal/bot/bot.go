@@ -56,8 +56,11 @@ func (b *Bot) Start() {
 			continue
 		}
 
-		// 1b. Tangani EDIT postingan di Channel Privat (misal admin ubah/hapus #vip dari caption)
+		// 1b. Tangani EDIT postingan di Channel Privat (misal admin edit judul drama atau ubah status VIP dari caption)
 		if update.EditedChannelPost != nil {
+			if b.handleChannelAdminCommand(update.EditedChannelPost) {
+				continue
+			}
 			go b.HandleEditedChannelPost(update.EditedChannelPost)
 			continue
 		}

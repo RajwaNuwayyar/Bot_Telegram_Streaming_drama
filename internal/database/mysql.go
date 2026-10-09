@@ -437,3 +437,99 @@ func (r *MySQLRepo) DeleteDramaPoster(dramaTitle string) error {
 	return nil
 }
 
+// UpdateEpisodeDetailsByMessageID memperbarui detail episode (judul, nomor episode, VIP, caption) berdasarkan telegram_message_id di MySQL.
+// Dipanggil saat admin mengedit postingan video di channel Telegram privat.
+func (r *MySQLRepo) UpdateEpisodeDetailsByMessageID(messageID int, dramaTitle string, epNum int, isVIP bool, caption string) error {
+	dramaTitle = strings.TrimSpace(dramaTitle)
+	if dramaTitle == "" {
+		return fmt.Errorf("judul drama tidak boleh kosong")
+	}
+
+	var epID, currentDramaID int64
+	var currentDramaTitle string
+	err := r.db.QueryRow(`
+		SELECT e.id, e.drama_id, d.title
+		FROM episodes e
+		JOIN dramas d ON e.drama_id = d.id
+		WHERE e.telegram_message_id = ?`, messageID).Scan(&epID, &currentDramaID, &currentDramaTitle)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("episode dengan message_id %d tidak ditemukan di database", messageID)
+		}
+		return err
+	}
+
+	targetDramaID := currentDramaID
+	if !strings.EqualFold(dramaTitle, currentDramaTitle) {
+		var existingDramaID int64
+		newSlug := strings.ToLower(strings.ReplaceAll(dramaTitle, " ", "-"))
+		err = r.db.QueryRow(`SELECT id FROM dramas WHERE LOWER(title) = LOWER(?) OR slug = ? LIMIT 1`, dramaTitle, newSlug).Scan(&existingDramaID)
+		if err == nil {
+			targetDramaID = existingDramaID
+		} else if err == sql.ErrNoRows {
+			var countOther int
+			_ = r.db.QueryRow(`SELECT COUNT(*) FROM episodes WHERE drama_id = ? AND id != ?`, currentDramaID, epID).Scan(&countOther)
+			if countOther == 0 {
+				_, _ = r.db.Exec(`UPDATE dramas SET title = ?, slug = ? WHERE id = ?`, dramaTitle, newSlug, currentDramaID)
+				targetDramaID = currentDramaID
+			} else {
+				resNew, errInsert := r.db.Exec(`INSERT INTO dramas (title, slug, poster_url, total_episodes, free_episodes_count) VALUES (?, ?, '', 0, 1)`, dramaTitle, newSlug)
+				if errInsert == nil {
+					targetDramaID, _ = resNew.LastInsertId()
+				}
+			}
+		}
+	}
+
+	epTitle := fmt.Sprintf("%s - Episode %d", dramaTitle, epNum)
+	_, err = r.db.Exec(`UPDATE episodes SET drama_id = ?, episode_number = ?, title = ? WHERE id = ?`, targetDramaID, epNum, epTitle, epID)
+	if err != nil {
+		return fmt.Errorf("gagal update episode: %w", err)
+	}
+
+	// Update is_vip jika kolom tersedia
+	_ = r.UpdateEpisodeVIPByMessageID(messageID, isVIP)
+
+	return nil
+}
+
+// UpdateDramaTitle memperbarui judul serial drama dan seluruh judul episodenya di database MySQL.
+// Dipanggil saat admin menggunakan perintah #edit_drama di channel atau /edit_drama di DM bot.
+// Mengembalikan jumlah episode yang berhasil diperbarui.
+func (r *MySQLRepo) UpdateDramaTitle(oldTitle string, newTitle string) (int64, error) {
+	oldTitle = strings.TrimSpace(oldTitle)
+	newTitle = strings.TrimSpace(newTitle)
+	if oldTitle == "" || newTitle == "" {
+		return 0, fmt.Errorf("judul lama dan judul baru tidak boleh kosong")
+	}
+	if strings.EqualFold(oldTitle, newTitle) {
+		return 0, fmt.Errorf("judul baru tidak boleh sama dengan judul lama")
+	}
+
+	oldSlug := strings.ToLower(strings.ReplaceAll(oldTitle, " ", "-"))
+	newSlug := strings.ToLower(strings.ReplaceAll(newTitle, " ", "-"))
+
+	var dramaID int64
+	err := r.db.QueryRow(`SELECT id FROM dramas WHERE LOWER(title) = LOWER(?) OR slug = ? LIMIT 1`, oldTitle, oldSlug).Scan(&dramaID)
+	if err == sql.ErrNoRows {
+		return 0, fmt.Errorf("drama dengan judul '%s' tidak ditemukan di database", oldTitle)
+	} else if err != nil {
+		return 0, err
+	}
+
+	// 1. Update tabel dramas
+	_, err = r.db.Exec(`UPDATE dramas SET title = ?, slug = ? WHERE id = ?`, newTitle, newSlug, dramaID)
+	if err != nil {
+		return 0, fmt.Errorf("gagal update drama '%s': %w", oldTitle, err)
+	}
+
+	// 2. Update judul episode di tabel episodes
+	res, err := r.db.Exec(`UPDATE episodes SET title = CONCAT(?, ' - Episode ', episode_number) WHERE drama_id = ?`, newTitle, dramaID)
+	if err != nil {
+		return 0, fmt.Errorf("gagal update judul episode drama '%s': %w", newTitle, err)
+	}
+
+	epUpdated, _ := res.RowsAffected()
+	return epUpdated, nil
+}
+

@@ -54,6 +54,15 @@ func (r *SQLiteRepo) migrate() error {
 			description TEXT,
 			is_active INTEGER DEFAULT 1
 		);`,
+		`CREATE TABLE IF NOT EXISTS dramas (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			title TEXT NOT NULL,
+			slug TEXT UNIQUE NOT NULL,
+			poster_url TEXT,
+			total_episodes INTEGER DEFAULT 0,
+			free_episodes_count INTEGER DEFAULT 1,
+			created_at DATETIME
+		);`,
 		`CREATE TABLE IF NOT EXISTS episodes (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			drama_id INTEGER DEFAULT 0,
@@ -244,7 +253,14 @@ func (r *SQLiteRepo) SaveEpisode(ep *Episode) error {
 		caption = excluded.caption;
 	`
 	_, err := r.db.Exec(query, ep.DramaID, ep.DramaTitle, ep.EpisodeNumber, ep.Title, ep.ChannelID, ep.MessageID, ep.FileID, ep.Duration, isVIPInt, ep.Caption, now)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Buat atau perbarui record di tabel dramas
+	slug := strings.ToLower(strings.ReplaceAll(ep.DramaTitle, " ", "-"))
+	_, _ = r.db.Exec(`INSERT OR IGNORE INTO dramas (title, slug, poster_url, total_episodes, free_episodes_count, created_at) VALUES (?, ?, ?, 0, 1, ?)`, ep.DramaTitle, slug, ep.ThumbnailFileID, now)
+	return nil
 }
 
 // GetEpisodeByID mengambil episode berdasarkan ID
@@ -462,5 +478,84 @@ func (r *SQLiteRepo) DeleteDramaPoster(dramaTitle string) error {
 		return fmt.Errorf("drama dengan judul '%s' tidak ditemukan di database", dramaTitle)
 	}
 	return nil
+}
+
+// UpdateEpisodeDetailsByMessageID memperbarui judul drama, nomor episode, status VIP, dan caption berdasarkan telegram_message_id.
+// Dipanggil saat admin mengedit postingan video di channel Telegram privat.
+func (r *SQLiteRepo) UpdateEpisodeDetailsByMessageID(messageID int, dramaTitle string, epNum int, isVIP bool, caption string) error {
+	dramaTitle = strings.TrimSpace(dramaTitle)
+	if dramaTitle == "" {
+		return fmt.Errorf("judul drama tidak boleh kosong")
+	}
+
+	vipVal := 0
+	if isVIP {
+		vipVal = 1
+	}
+	epTitle := fmt.Sprintf("%s - Episode %d", dramaTitle, epNum)
+
+	var oldDramaTitle string
+	_ = r.db.QueryRow(`SELECT drama_title FROM episodes WHERE message_id = ?`, messageID).Scan(&oldDramaTitle)
+
+	res, err := r.db.Exec(`UPDATE episodes SET drama_title = ?, episode_number = ?, title = ?, is_vip = ?, caption = ? WHERE message_id = ?`,
+		dramaTitle, epNum, epTitle, vipVal, caption, messageID)
+	if err != nil {
+		return fmt.Errorf("gagal update episode: %w", err)
+	}
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("episode dengan message_id %d tidak ditemukan di database", messageID)
+	}
+
+	// Sinkronisasi dengan tabel dramas jika judul berubah
+	if oldDramaTitle != "" && !strings.EqualFold(oldDramaTitle, dramaTitle) {
+		var remaining int
+		_ = r.db.QueryRow(`SELECT COUNT(*) FROM episodes WHERE LOWER(drama_title) = LOWER(?)`, oldDramaTitle).Scan(&remaining)
+		newSlug := strings.ToLower(strings.ReplaceAll(dramaTitle, " ", "-"))
+		if remaining == 0 {
+			_, _ = r.db.Exec(`UPDATE dramas SET title = ?, slug = ? WHERE LOWER(title) = LOWER(?)`, dramaTitle, newSlug, oldDramaTitle)
+		} else {
+			_, _ = r.db.Exec(`INSERT OR IGNORE INTO dramas (title, slug, poster_url, total_episodes, free_episodes_count, created_at) VALUES (?, ?, '', 0, 1, ?)`, dramaTitle, newSlug, time.Now())
+		}
+	}
+
+	return nil
+}
+
+// UpdateDramaTitle memperbarui judul serial drama dan seluruh judul episodenya di SQLite.
+// Dipanggil saat admin mengirim perintah #edit_drama di channel atau /edit_drama di DM bot.
+// Mengembalikan jumlah episode yang berhasil diperbarui.
+func (r *SQLiteRepo) UpdateDramaTitle(oldTitle string, newTitle string) (int64, error) {
+	oldTitle = strings.TrimSpace(oldTitle)
+	newTitle = strings.TrimSpace(newTitle)
+	if oldTitle == "" || newTitle == "" {
+		return 0, fmt.Errorf("judul lama dan judul baru tidak boleh kosong")
+	}
+	if strings.EqualFold(oldTitle, newTitle) {
+		return 0, fmt.Errorf("judul baru tidak boleh sama dengan judul lama")
+	}
+
+	oldSlug := strings.ToLower(strings.ReplaceAll(oldTitle, " ", "-"))
+	newSlug := strings.ToLower(strings.ReplaceAll(newTitle, " ", "-"))
+
+	// 1. Update judul di tabel episodes
+	resEp, err := r.db.Exec(`UPDATE episodes SET drama_title = ?, title = ? || ' - Episode ' || episode_number WHERE LOWER(drama_title) = LOWER(?)`, newTitle, newTitle, oldTitle)
+	if err != nil {
+		return 0, fmt.Errorf("gagal update episode drama '%s': %w", oldTitle, err)
+	}
+	epUpdated, _ := resEp.RowsAffected()
+
+	// 2. Update tabel dramas jika tabel ada
+	resDrama, err := r.db.Exec(`UPDATE dramas SET title = ?, slug = ? WHERE LOWER(title) = LOWER(?) OR slug = ?`, newTitle, newSlug, oldTitle, oldSlug)
+	var dramaUpdated int64
+	if err == nil {
+		dramaUpdated, _ = resDrama.RowsAffected()
+	}
+
+	if epUpdated == 0 && dramaUpdated == 0 {
+		return 0, fmt.Errorf("drama dengan judul '%s' tidak ditemukan di database", oldTitle)
+	}
+
+	return epUpdated, nil
 }
 

@@ -20,7 +20,9 @@ type Repository interface {
 	GetEpisodeByTitleAndNumber(title string, epNum int) (*Episode, error)
 	GetAdjacentEpisodes(title string, currentEpNum int) (prev *Episode, next *Episode, err error)
 	UpdateEpisodeVIPByMessageID(messageID int, isVIP bool) error  // Update status VIP saat caption diedit
+	UpdateEpisodeDetailsByMessageID(messageID int, dramaTitle string, episodeNumber int, isVIP bool, caption string) error // Update judul, episode, status VIP & caption saat pesan channel diedit
 	DeleteEpisodeByMessageID(messageID int) error                  // Hapus episode saat video dihapus dari channel
+	UpdateDramaTitle(oldTitle string, newTitle string) (int64, error) // Update judul drama beserta seluruh episodenya di database
 	DeleteDramaByTitle(dramaTitle string) (int64, error)           // Hapus seluruh drama beserta semua episodenya berdasarkan judul
 	UpdateDramaPoster(dramaTitle string, posterFileID string) error // Update thumbnail/poster drama dari upload channel tag #poster
 	DeleteDramaPoster(dramaTitle string) error                      // Hapus/reset poster drama kembali ke default

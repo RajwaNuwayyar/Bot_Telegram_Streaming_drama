@@ -76,8 +76,10 @@ graph TD
 - **Admin Channel Commands**: Manajemen episode langsung dari channel tanpa buka database:
   - `#hapus_episode <message_id>`: Menghapus data episode dari database.
   - `#hapus_drama <Judul Drama>`: Menghapus seluruh judul drama dan relasinya secara permanen.
+  - `#edit_drama <Judul Lama> | <Judul Baru>`: Memperbarui judul drama dan seluruh episodenya secara langsung.
   - `#set_poster <Judul> | <file_id>`: Memperbarui poster/thumbnail drama.
   - Unggah foto dengan tag `#poster` untuk auto-update thumbnail drama.
+  - Edit caption postingan di channel untuk auto-update judul drama & status VIP.
 - **Pengiriman Video Berkecepatan Tinggi**: Menggunakan metode `CopyMessage` dari channel privat tanpa watermark/forward header dan fallback `FileID`.
 - **Navigasi Episode Terpadu**: Tombol interaktif *Episode Sebelumnya*, *Episode Selanjutnya*, dan tombol pintas kembali ke Mini App.
 
@@ -317,11 +319,15 @@ docker-compose up --build -d
 - `/bantuan` : Pusat informasi bantuan dan FAQ.
 
 ### 🛡️ Perintah Admin & Channel (Admin Controls)
+- `/edit_drama <Judul Lama> | <Judul Baru>` : Mengubah/memperbarui judul drama beserta semua episodenya via DM admin.
 - `/set_poster <Judul Drama> | <File_ID>` : Menyetel poster drama via DM admin.
 - `/simulate_pay <TRX_CODE>` : Simulasi pelunasan transaksi untuk pengujian.
+- `#edit_drama <Judul Lama> | <Judul Baru>` : Ditulis di channel privat untuk memperbarui judul serial drama & semua episodenya.
+- `#edit_episode <message_id> | <Judul Baru>` : Ditulis di channel privat untuk memperbarui judul episode spesifik.
 - `#hapus_episode <message_id>` : Ditulis di channel privat untuk menghapus episode dari database.
 - `#hapus_drama <Judul Drama>` : Ditulis di channel privat untuk menghapus seluruh serial drama.
 - `#set_poster <Judul> | <file_id>` : Ditulis di channel privat untuk update poster drama.
+- **Edit Caption Video di Channel** : Otomatis mendeteksi pembaruan judul drama, nomor episode, dan tag `#vip`.
 - **Upload Gambar + Caption `#poster`** : Otomatis memperbarui thumbnail serial drama di database dan Mini App.
 
 ---

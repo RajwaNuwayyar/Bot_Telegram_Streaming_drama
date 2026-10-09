@@ -38,6 +38,9 @@ func (b *Bot) HandleCommand(msg *tgbotapi.Message) {
 	case "hapus_poster", "delete_poster":
 		// Admin menghapus/mereset poster drama via command
 		b.handleDeletePoster(telegramID, args)
+	case "edit_drama", "update_drama", "ubah_drama", "edit_judul":
+		// Admin mengubah judul drama via command
+		b.handleEditDrama(telegramID, args)
 	default:
 		// Default tampilkan menu utama
 		b.handleStart(msg, "")
@@ -249,6 +252,55 @@ func (b *Bot) handleDeletePoster(telegramID int64, args string) {
 	log.Printf("[Admin] Poster drama '%s' berhasil dihapus oleh admin %d\n", title, telegramID)
 	successMsg := tgbotapi.NewMessage(telegramID,
 		fmt.Sprintf("🗑️ *Poster drama berhasil dihapus!*\n\n🎬 *Judul:* %s\n💾 Poster telah direset kembali ke tampilan default di Mini App.", title))
+	successMsg.ParseMode = "Markdown"
+	_, _ = b.api.Send(successMsg)
+}
+
+// handleEditDrama memungkinkan admin mengubah/memperbarui judul drama beserta semua episodenya via DM bot.
+// Penggunaan: /edit_drama <Judul Lama> | <Judul Baru>
+func (b *Bot) handleEditDrama(telegramID int64, args string) {
+	if b.cfg.AdminUserID == 0 || telegramID != b.cfg.AdminUserID {
+		msg := tgbotapi.NewMessage(telegramID, "⛔ Perintah ini hanya bisa digunakan oleh admin.")
+		_, _ = b.api.Send(msg)
+		return
+	}
+
+	args = strings.TrimSpace(args)
+	if args == "" || !strings.Contains(args, "|") {
+		msg := tgbotapi.NewMessage(telegramID,
+			"⚠️ *Format salah.*\n\n"+
+				"Gunakan: `/edit_drama <Judul Lama> | <Judul Baru>`\n\n"+
+				"💡 *Contoh:*\n"+
+				"`/edit_drama Grand Blue | Grand Blue Dreaming`\n"+
+				"`/edit_drama The Secret CEO | The Secret Billionaire`\n\n"+
+				"Seluruh episode milik drama ini akan otomatis diperbarui judulnya di database dan Mini App.")
+		msg.ParseMode = "Markdown"
+		_, _ = b.api.Send(msg)
+		return
+	}
+
+	parts := strings.SplitN(args, "|", 2)
+	oldTitle := strings.TrimSpace(parts[0])
+	newTitle := strings.TrimSpace(parts[1])
+
+	if oldTitle == "" || newTitle == "" {
+		msg := tgbotapi.NewMessage(telegramID, "❌ Judul lama dan judul baru harus diisi.")
+		_, _ = b.api.Send(msg)
+		return
+	}
+
+	epUpdated, err := b.repo.UpdateDramaTitle(oldTitle, newTitle)
+	if err != nil {
+		log.Printf("[Admin] Gagal update drama '%s' -> '%s': %v\n", oldTitle, newTitle, err)
+		msg := tgbotapi.NewMessage(telegramID, fmt.Sprintf("❌ Gagal memperbarui judul drama: %v", err))
+		_, _ = b.api.Send(msg)
+		return
+	}
+
+	log.Printf("[Admin] Drama '%s' berhasil diubah menjadi '%s' (%d episode) oleh admin %d\n", oldTitle, newTitle, epUpdated, telegramID)
+	successMsg := tgbotapi.NewMessage(telegramID,
+		fmt.Sprintf("✅ *Judul drama berhasil diperbarui!*\n\n🎬 *Judul Lama:* %s\n✨ *Judul Baru:* %s\n🔢 *Episode Diperbarui:* %d episode\n💾 Perubahan telah tersimpan di database dan Mini App.",
+			oldTitle, newTitle, epUpdated))
 	successMsg.ParseMode = "Markdown"
 	_, _ = b.api.Send(successMsg)
 }

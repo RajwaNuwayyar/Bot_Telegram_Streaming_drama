@@ -120,7 +120,6 @@ func (b *Bot) HandleEditedChannelPost(post *tgbotapi.Message) {
 
 	// Urai ulang caption yang sudah diedit
 	dramaTitle, epNum, _ := parseCaption(caption)
-	_ = epNum // epNum digunakan untuk metadata notifikasi
 
 	// Episode hanya dikunci VIP jika caption SECARA EKSPLISIT mengandung tag #vip atau [vip].
 	isVIP := strings.Contains(strings.ToLower(caption), "#vip") ||
@@ -130,13 +129,16 @@ func (b *Bot) HandleEditedChannelPost(post *tgbotapi.Message) {
 	log.Printf("[ChannelEdit] Deteksi edit caption MsgID %d: '%s' Ep %d → isVIP: %v\n",
 		messageID, dramaTitle, epNum, isVIP)
 
-	// Update status VIP episode di database berdasarkan message_id
-	if err := b.repo.UpdateEpisodeVIPByMessageID(messageID, isVIP); err != nil {
-		log.Printf("[ChannelEdit] Gagal update status VIP episode (MsgID %d): %v\n", messageID, err)
-		return
+	// Update detail episode dan judul drama di database berdasarkan message_id
+	if err := b.repo.UpdateEpisodeDetailsByMessageID(messageID, dramaTitle, epNum, isVIP, caption); err != nil {
+		log.Printf("[ChannelEdit] Gagal update detail episode (MsgID %d): %v, fallback ke update status VIP saja\n", messageID, err)
+		if errVIP := b.repo.UpdateEpisodeVIPByMessageID(messageID, isVIP); errVIP != nil {
+			log.Printf("[ChannelEdit] Gagal update status VIP episode (MsgID %d): %v\n", messageID, errVIP)
+			return
+		}
+	} else {
+		log.Printf("[ChannelEdit] Berhasil update episode MsgID %d: '%s' Ep %d (isVIP: %v)\n", messageID, dramaTitle, epNum, isVIP)
 	}
-
-	log.Printf("[ChannelEdit] Berhasil update episode MsgID %d → isVIP: %v\n", messageID, isVIP)
 
 	// Notifikasi ke admin
 	if b.cfg.AdminUserID != 0 {
@@ -144,13 +146,13 @@ func (b *Bot) HandleEditedChannelPost(post *tgbotapi.Message) {
 		if isVIP {
 			vipStatusStr = "👑 VIP Only (Diperbarui)"
 		}
-		notifText := fmt.Sprintf(`✏️ *Update Caption Episode Terdeteksi!*
+		notifText := fmt.Sprintf(`✏️ *Update Postingan Episode Terdeteksi!*
 ━━━━━━━━━━━━━━━━━━━━
-🎬 *Judul:* %s
+🎬 *Judul Drama:* %s
 🔢 *Episode:* %d
 🏷️ *Status Baru:* %s
 🆔 *Message ID:* %d
-💾 Database telah diperbarui sesuai caption terbaru.`,
+💾 Database dan Mini App telah diperbarui sesuai caption terbaru.`,
 			dramaTitle, epNum, vipStatusStr, messageID)
 
 		notifMsg := tgbotapi.NewMessage(b.cfg.AdminUserID, notifText)
@@ -326,6 +328,101 @@ func (b *Bot) handleChannelAdminCommand(post *tgbotapi.Message) bool {
 			} else {
 				log.Printf("[ChannelAdmin] Episode MsgID %d berhasil dihapus via channel command\n", messageID)
 				replyText = fmt.Sprintf("✅ *Episode berhasil dihapus!*\n\n🆔 Message ID: `%d`\n💾 Data telah dihapus dari database.", messageID)
+			}
+		}
+
+		// Hapus pesan perintah dari channel agar channel tetap bersih
+		deleteMsg := tgbotapi.NewDeleteMessage(post.Chat.ID, post.MessageID)
+		_, _ = b.api.Request(deleteMsg)
+
+		// Kirim hasil ke admin via DM
+		if b.cfg.AdminUserID != 0 {
+			notif := tgbotapi.NewMessage(b.cfg.AdminUserID, replyText)
+			notif.ParseMode = "Markdown"
+			_, _ = b.api.Send(notif)
+		}
+		return true
+	}
+
+	// Perintah: #edit_drama <Judul Lama> | <Judul Baru> atau #update_drama <Judul Lama> | <Judul Baru>
+	if strings.HasPrefix(strings.ToLower(text), "#edit_drama") ||
+		strings.HasPrefix(strings.ToLower(text), "#update_drama") ||
+		strings.HasPrefix(strings.ToLower(text), "#ubah_drama") ||
+		strings.HasPrefix(strings.ToLower(text), "#edit_judul") {
+
+		var prefixLen int
+		lowerText := strings.ToLower(text)
+		if strings.HasPrefix(lowerText, "#edit_drama") {
+			prefixLen = len("#edit_drama")
+		} else if strings.HasPrefix(lowerText, "#update_drama") {
+			prefixLen = len("#update_drama")
+		} else if strings.HasPrefix(lowerText, "#ubah_drama") {
+			prefixLen = len("#ubah_drama")
+		} else {
+			prefixLen = len("#edit_judul")
+		}
+
+		args := strings.TrimSpace(text[prefixLen:])
+		var replyText string
+
+		if args == "" || !strings.Contains(args, "|") {
+			replyText = "⚠️ *Format salah.*\n\nGunakan: `#edit_drama <Judul Lama> | <Judul Baru>`\n\n💡 *Contoh:*\n`#edit_drama Grand Blue | Grand Blue Dreaming`\n`#edit_drama The Secret CEO | The Secret Billionaire`\n\n📝 Seluruh episode milik drama ini akan otomatis diperbarui judulnya di database dan Mini App."
+		} else {
+			parts := strings.SplitN(args, "|", 2)
+			oldTitle := strings.TrimSpace(parts[0])
+			newTitle := strings.TrimSpace(parts[1])
+
+			if oldTitle == "" || newTitle == "" {
+				replyText = "❌ Judul lama dan judul baru harus diisi.\n\nContoh: `#edit_drama Grand Blue | Grand Blue Dreaming`"
+			} else {
+				epUpdated, err := b.repo.UpdateDramaTitle(oldTitle, newTitle)
+				if err != nil {
+					log.Printf("[ChannelAdmin] Gagal update judul drama '%s' -> '%s': %v\n", oldTitle, newTitle, err)
+					replyText = fmt.Sprintf("❌ Gagal memperbarui judul drama.\n\n`%v`", err)
+				} else {
+					log.Printf("[ChannelAdmin] Judul drama '%s' berhasil diubah menjadi '%s' (%d episode) via channel command\n", oldTitle, newTitle, epUpdated)
+					replyText = fmt.Sprintf("✅ *Judul drama berhasil diperbarui!*\n\n🎬 *Judul Lama:* %s\n✨ *Judul Baru:* %s\n🔢 *Episode diperbarui:* %d episode\n💾 Perubahan telah tersimpan di database dan langsung tampil di Mini App.", oldTitle, newTitle, epUpdated)
+				}
+			}
+		}
+
+		// Hapus pesan perintah dari channel agar channel tetap bersih
+		deleteMsg := tgbotapi.NewDeleteMessage(post.Chat.ID, post.MessageID)
+		_, _ = b.api.Request(deleteMsg)
+
+		// Kirim hasil ke admin via DM
+		if b.cfg.AdminUserID != 0 {
+			notif := tgbotapi.NewMessage(b.cfg.AdminUserID, replyText)
+			notif.ParseMode = "Markdown"
+			_, _ = b.api.Send(notif)
+		}
+		return true
+	}
+
+	// Perintah: #edit_episode <message_id> | <Judul Drama Baru>
+	if strings.HasPrefix(strings.ToLower(text), "#edit_episode") {
+		args := strings.TrimSpace(text[len("#edit_episode"):])
+		var replyText string
+
+		if args == "" || !strings.Contains(args, "|") {
+			replyText = "⚠️ *Format salah.*\n\nGunakan: `#edit_episode <message_id> | <Judul Baru>`\n\n💡 *Contoh:*\n`#edit_episode 12345 | The Secret CEO`"
+		} else {
+			parts := strings.SplitN(args, "|", 2)
+			msgIDStr := strings.TrimSpace(parts[0])
+			newTitle := strings.TrimSpace(parts[1])
+
+			messageID, err := strconv.Atoi(msgIDStr)
+			if err != nil || messageID <= 0 || newTitle == "" {
+				replyText = "❌ Message ID tidak valid atau judul baru kosong."
+			} else {
+				err := b.repo.UpdateEpisodeDetailsByMessageID(messageID, newTitle, 1, false, newTitle)
+				if err != nil {
+					log.Printf("[ChannelAdmin] Gagal edit episode MsgID %d: %v\n", messageID, err)
+					replyText = fmt.Sprintf("❌ Gagal update episode: %v", err)
+				} else {
+					log.Printf("[ChannelAdmin] Episode MsgID %d berhasil diupdate menjadi '%s'\n", messageID, newTitle)
+					replyText = fmt.Sprintf("✅ *Episode berhasil diperbarui!*\n\n🆔 *Message ID:* `%d`\n🎬 *Judul Baru:* %s\n💾 Data telah diperbarui di database.", messageID, newTitle)
+				}
 			}
 		}
 
