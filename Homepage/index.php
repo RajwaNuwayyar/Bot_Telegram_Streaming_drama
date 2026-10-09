@@ -166,8 +166,17 @@ if (!in_array($page, $allowed_pages)) {
         function playEpisode(episodeId, playLink) {
             // Hit API history di background tanpa menunggu response
             fetch('api/add_history.php?episode_id=' + episodeId).catch(e => console.log(e));
-            // Langsung buka link Telegram
-            window.Telegram.WebApp.openTelegramLink(playLink);
+            
+            if (window.Telegram && window.Telegram.WebApp) {
+                // Buka link Telegram untuk mengirim video episode ke chat
+                window.Telegram.WebApp.openTelegramLink(playLink);
+                // Langsung tutup jendela Mini App agar di HP otomatis kembali ke ruang chat utama bot
+                setTimeout(function() {
+                    window.Telegram.WebApp.close();
+                }, 100);
+            } else {
+                window.location.href = playLink;
+            }
         }
 
     </script>
