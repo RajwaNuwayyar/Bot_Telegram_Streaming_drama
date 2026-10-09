@@ -170,10 +170,8 @@ if (!in_array($page, $allowed_pages)) {
             if (window.Telegram && window.Telegram.WebApp) {
                 // Buka link Telegram untuk mengirim video episode ke chat
                 window.Telegram.WebApp.openTelegramLink(playLink);
-                // Langsung tutup jendela Mini App agar di HP otomatis kembali ke ruang chat utama bot
-                setTimeout(function() {
-                    window.Telegram.WebApp.close();
-                }, 100);
+                // Force close Mini App segera setelah link dibuka
+                window.Telegram.WebApp.close();
             } else {
                 window.location.href = playLink;
             }
