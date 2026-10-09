@@ -533,3 +533,29 @@ func (r *MySQLRepo) UpdateDramaTitle(oldTitle string, newTitle string) (int64, e
 	return epUpdated, nil
 }
 
+// GetRevenueSummary menghitung total transaksi berstatus PAID
+// Mengembalikan map berisi total hari ini, minggu ini, bulan ini, dan tahun ini.
+func (r *MySQLRepo) GetRevenueSummary() (map[string]float64, error) {
+	summary := map[string]float64{
+		"today": 0,
+		"week":  0,
+		"month": 0,
+		"year":  0,
+	}
+
+	var val sql.NullFloat64
+
+	_ = r.db.QueryRow(`SELECT SUM(amount) FROM transactions WHERE status = 'PAID' AND DATE(paid_at) = CURDATE()`).Scan(&val)
+	if val.Valid { summary["today"] = val.Float64 }
+
+	_ = r.db.QueryRow(`SELECT SUM(amount) FROM transactions WHERE status = 'PAID' AND YEARWEEK(paid_at, 1) = YEARWEEK(CURDATE(), 1)`).Scan(&val)
+	if val.Valid { summary["week"] = val.Float64 }
+
+	_ = r.db.QueryRow(`SELECT SUM(amount) FROM transactions WHERE status = 'PAID' AND YEAR(paid_at) = YEAR(CURDATE()) AND MONTH(paid_at) = MONTH(CURDATE())`).Scan(&val)
+	if val.Valid { summary["month"] = val.Float64 }
+
+	_ = r.db.QueryRow(`SELECT SUM(amount) FROM transactions WHERE status = 'PAID' AND YEAR(paid_at) = YEAR(CURDATE())`).Scan(&val)
+	if val.Valid { summary["year"] = val.Float64 }
+
+	return summary, nil
+}

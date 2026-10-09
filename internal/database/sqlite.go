@@ -559,3 +559,33 @@ func (r *SQLiteRepo) UpdateDramaTitle(oldTitle string, newTitle string) (int64, 
 	return epUpdated, nil
 }
 
+// GetRevenueSummary menghitung total transaksi berstatus PAID
+// Mengembalikan map berisi total hari ini, minggu ini, bulan ini, dan tahun ini.
+func (r *SQLiteRepo) GetRevenueSummary() (map[string]float64, error) {
+	summary := map[string]float64{
+		"today": 0,
+		"week":  0,
+		"month": 0,
+		"year":  0,
+	}
+
+	var val sql.NullFloat64
+
+	// Today
+	_ = r.db.QueryRow(`SELECT SUM(amount) FROM transactions WHERE status = 'PAID' AND date(paid_at) = date('now', 'localtime')`).Scan(&val)
+	if val.Valid { summary["today"] = val.Float64 }
+
+	// This week
+	_ = r.db.QueryRow(`SELECT SUM(amount) FROM transactions WHERE status = 'PAID' AND strftime('%W', paid_at) = strftime('%W', 'now', 'localtime') AND strftime('%Y', paid_at) = strftime('%Y', 'now', 'localtime')`).Scan(&val)
+	if val.Valid { summary["week"] = val.Float64 }
+
+	// This month
+	_ = r.db.QueryRow(`SELECT SUM(amount) FROM transactions WHERE status = 'PAID' AND strftime('%Y-%m', paid_at) = strftime('%Y-%m', 'now', 'localtime')`).Scan(&val)
+	if val.Valid { summary["month"] = val.Float64 }
+
+	// This year
+	_ = r.db.QueryRow(`SELECT SUM(amount) FROM transactions WHERE status = 'PAID' AND strftime('%Y', paid_at) = strftime('%Y', 'now', 'localtime')`).Scan(&val)
+	if val.Valid { summary["year"] = val.Float64 }
+
+	return summary, nil
+}

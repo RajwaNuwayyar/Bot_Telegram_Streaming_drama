@@ -32,4 +32,5 @@ type Repository interface {
 	GetTransactionByCode(trxCode string) (*Transaction, error)
 	MarkTransactionPaid(trxCode string) (*Transaction, error)
 	CancelTransaction(trxCode string) error
+	GetRevenueSummary() (map[string]float64, error)
 }

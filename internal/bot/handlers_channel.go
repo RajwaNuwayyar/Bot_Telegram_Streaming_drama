@@ -542,6 +542,36 @@ func (b *Bot) handleChannelAdminCommand(post *tgbotapi.Message) bool {
 		return true
 	}
 
+	// Perintah: #pendapatan
+	if strings.HasPrefix(strings.ToLower(text), "#pendapatan") {
+		var replyText string
+
+		summary, err := b.repo.GetRevenueSummary()
+		if err != nil {
+			log.Printf("[ChannelAdmin] Gagal menghitung pendapatan: %v\n", err)
+			replyText = fmt.Sprintf("❌ Gagal menghitung pendapatan: %v", err)
+		} else {
+			replyText = fmt.Sprintf(`💰 *Ringkasan Pendapatan VIP*
+━━━━━━━━━━━━━━━━━━━━
+📅 *Hari Ini:* Rp %.0f
+🗓️ *Minggu Ini:* Rp %.0f
+📆 *Bulan Ini:* Rp %.0f
+📈 *Tahun Ini:* Rp %.0f`, summary["today"], summary["week"], summary["month"], summary["year"])
+		}
+
+		// Hapus pesan perintah dari channel agar channel tetap bersih
+		deleteMsg := tgbotapi.NewDeleteMessage(post.Chat.ID, post.MessageID)
+		_, _ = b.api.Request(deleteMsg)
+
+		// Kirim hasil ke admin via DM
+		if b.cfg.AdminUserID != 0 {
+			notif := tgbotapi.NewMessage(b.cfg.AdminUserID, replyText)
+			notif.ParseMode = "Markdown"
+			_, _ = b.api.Send(notif)
+		}
+		return true
+	}
+
 	return false
 }
 

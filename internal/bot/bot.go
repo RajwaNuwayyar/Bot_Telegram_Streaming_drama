@@ -111,6 +111,23 @@ func (b *Bot) NotifyPaymentSuccess(tx *database.Transaction) error {
 	msg.ReplyMarkup = btn
 
 	_, err = b.api.Send(msg)
+	
+	// Notifikasi japri ke admin
+	if b.cfg.AdminUserID != 0 {
+		adminText := fmt.Sprintf(`💸 *Pembayaran VIP Berhasil!*
+━━━━━━━━━━━━━━━━━━━━
+👤 *User ID:* `+"`%d`"+`
+📝 *Nama:* %s %s
+🛍️ *Paket:* %s
+💰 *Nominal:* Rp %.0f
+📆 *VIP Sampai:* %s`, 
+			user.TelegramID, user.FirstName, user.LastName, tx.PlanName, tx.Amount, user.VIPUntil.Format("02 Jan 2006"))
+		
+		adminMsg := tgbotapi.NewMessage(b.cfg.AdminUserID, adminText)
+		adminMsg.ParseMode = "Markdown"
+		_, _ = b.api.Send(adminMsg)
+	}
+	
 	return err
 }
 
