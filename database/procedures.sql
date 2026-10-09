@@ -490,7 +490,7 @@ proc_end: BEGIN  -- [FIX Bug 4] Label dideklarasikan agar LEAVE proc_end valid
     ) VALUES (
         p_user_id, p_amount_coin, v_amount_rupiah, v_fee_pct, v_fee_amount,
         v_amount_after_fee, p_bank_name, p_account_number, p_account_holder,
-        'pending'
+        'diproses'
     );
 
     COMMIT;

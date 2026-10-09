@@ -21,6 +21,14 @@ $level = 1;
 if ($ref_value > 5000000) $level = 4;
 elseif ($ref_value > 3000000) $level = 3;
 elseif ($ref_value > 1000000) $level = 2;
+
+// Fetch withdrawal history
+$withdrawals = [];
+if ($user['id'] > 0) {
+    $stmt_wd = $pdo->prepare("SELECT * FROM affiliate_withdrawals WHERE user_id = ? ORDER BY requested_at DESC LIMIT 10");
+    $stmt_wd->execute([$user['id']]);
+    $withdrawals = $stmt_wd->fetchAll(PDO::FETCH_ASSOC);
+}
 ?>
 <!-- Affiliate View -->
 <div class="px-5 pt-6 pb-4">
@@ -46,7 +54,7 @@ elseif ($ref_value > 1000000) $level = 2;
             
             <p data-i18n="ready_withdraw" class="text-[11px] text-emerald-200 mb-6">Ready to withdraw</p>
             
-            <button onclick="alert('Fitur withdraw sedang dalam pengembangan!')" data-i18n="btn_withdraw" class="w-full bg-emerald-500 hover:bg-emerald-400 text-darkbg font-bold py-3 rounded-xl shadow-lg transition-colors">
+            <button onclick="openWithdrawModal()" data-i18n="btn_withdraw" class="w-full bg-emerald-500 hover:bg-emerald-400 text-darkbg font-bold py-3 rounded-xl shadow-lg transition-colors">
                 Withdraw Funds
             </button>
         </div>
@@ -114,6 +122,49 @@ elseif ($ref_value > 1000000) $level = 2;
             </div>
         </div>
     </div>
+
+    <!-- Withdrawal History -->
+    <?php if (count($withdrawals) > 0): ?>
+    <h3 class="text-sm font-bold mb-3 text-textmuted uppercase tracking-wider">Riwayat Penarikan</h3>
+    <div class="flex flex-col gap-3 pb-8">
+        <?php foreach ($withdrawals as $wd): 
+            $status_color = 'text-yellow-400';
+            $status_bg = 'bg-yellow-400/10';
+            $icon = 'fa-clock';
+            $status_text = 'Diproses';
+
+            if ($wd['status'] == 'terkirim' || $wd['status'] == 'completed') {
+                $status_color = 'text-emerald-500';
+                $status_bg = 'bg-emerald-500/10';
+                $icon = 'fa-check-circle';
+                $status_text = 'Terkirim';
+            } elseif ($wd['status'] == 'rejected') {
+                $status_color = 'text-red-500';
+                $status_bg = 'bg-red-500/10';
+                $icon = 'fa-xmark-circle';
+                $status_text = 'Ditolak';
+            }
+        ?>
+        <div class="bg-cardbg border border-white/5 rounded-2xl p-4">
+            <div class="flex justify-between items-start mb-2">
+                <div>
+                    <span class="text-xs text-textmuted font-mono">#WD_<?php echo $wd['id']; ?></span>
+                    <h4 class="font-bold text-white mt-1">Rp <?php echo number_format($wd['amount_after_fee'], 0, ',', '.'); ?></h4>
+                </div>
+                <div class="<?php echo $status_bg . ' ' . $status_color; ?> px-2 py-1 rounded-lg flex items-center gap-1.5 border border-current/20">
+                    <i class="fa-solid <?php echo $icon; ?> text-[10px]"></i>
+                    <span class="text-[10px] font-bold uppercase tracking-wider"><?php echo $status_text; ?></span>
+                </div>
+            </div>
+            <div class="flex justify-between items-center text-xs text-textmuted">
+                <span>DANA: <?php echo htmlspecialchars($wd['account_number']); ?></span>
+                <span><?php echo date('d M Y, H:i', strtotime($wd['requested_at'])); ?></span>
+            </div>
+        </div>
+        <?php endforeach; ?>
+    </div>
+    <?php endif; ?>
+
 </div>
 
 <script>
@@ -125,4 +176,120 @@ function copyRefLink() {
         console.error('Failed to copy: ', err);
     });
 }
+
+function openWithdrawModal() {
+    document.getElementById('withdrawModal').classList.remove('hidden');
+    document.getElementById('withdrawModal').classList.add('flex');
+}
+
+function closeWithdrawModal() {
+    document.getElementById('withdrawModal').classList.add('hidden');
+    document.getElementById('withdrawModal').classList.remove('flex');
+}
+
+let selectedWithdrawAmount = 0;
+
+function selectWithdrawAmount(amount, element) {
+    selectedWithdrawAmount = amount;
+    
+    // Reset all buttons
+    const btns = document.querySelectorAll('.wd-btn');
+    btns.forEach(btn => {
+        btn.classList.remove('border-emerald-500', 'bg-emerald-500/20');
+        btn.classList.add('border-white/10', 'bg-darkbg');
+    });
+    
+    // Highlight selected
+    element.classList.remove('border-white/10', 'bg-darkbg');
+    element.classList.add('border-emerald-500', 'bg-emerald-500/20');
+}
+
+function submitWithdrawal() {
+    if (selectedWithdrawAmount === 0) {
+        alert('Silakan pilih nominal penarikan.');
+        return;
+    }
+    
+    const danaNumber = document.getElementById('dana_number').value.trim();
+    if (!danaNumber) {
+        alert('Silakan masukkan nomor DANA Anda.');
+        return;
+    }
+    
+    const btn = document.getElementById('btnSubmitWithdraw');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memproses...';
+    btn.disabled = true;
+
+    fetch('api/withdraw.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            amount: selectedWithdrawAmount,
+            dana_number: danaNumber
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message || 'Permintaan penarikan berhasil diajukan!');
+            window.location.reload();
+        } else {
+            alert(data.message || 'Gagal mengajukan penarikan.');
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert('Terjadi kesalahan sistem.');
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    });
+}
 </script>
+
+<!-- Withdraw Modal -->
+<div id="withdrawModal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4 bg-black/80 backdrop-blur-sm transition-opacity">
+    <div class="bg-cardbg border border-white/10 rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl transform scale-100 transition-transform">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-5">
+                <h3 class="text-xl font-bold text-white">Withdraw Funds</h3>
+                <button onclick="closeWithdrawModal()" class="text-textmuted hover:text-white w-8 h-8 flex items-center justify-center rounded-full bg-white/5">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <p class="text-sm text-textmuted mb-4">Pilih nominal penarikan ke DANA:</p>
+            
+            <div class="grid grid-cols-3 gap-3 mb-6">
+                <button onclick="selectWithdrawAmount(50000, this)" class="wd-btn py-3 px-1 rounded-xl border border-white/10 bg-darkbg hover:border-emerald-500/50 transition-colors text-center">
+                    <div class="text-white font-bold text-sm">50K</div>
+                </button>
+                <button onclick="selectWithdrawAmount(75000, this)" class="wd-btn py-3 px-1 rounded-xl border border-white/10 bg-darkbg hover:border-emerald-500/50 transition-colors text-center">
+                    <div class="text-white font-bold text-sm">75K</div>
+                </button>
+                <button onclick="selectWithdrawAmount(100000, this)" class="wd-btn py-3 px-1 rounded-xl border border-white/10 bg-darkbg hover:border-emerald-500/50 transition-colors text-center">
+                    <div class="text-white font-bold text-sm">100K</div>
+                </button>
+            </div>
+            
+            <div class="mb-6">
+                <label class="block text-xs text-emerald-200 mb-2 uppercase tracking-wider font-semibold">Nomor DANA</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none text-textmuted">
+                        <i class="fa-solid fa-wallet"></i>
+                    </div>
+                    <input type="tel" id="dana_number" placeholder="Contoh: 08123456789" class="w-full bg-darkbg border border-white/10 text-white rounded-xl py-3 pl-10 pr-4 focus:outline-none focus:border-emerald-500 transition-colors placeholder-white/20">
+                </div>
+            </div>
+            
+            <button id="btnSubmitWithdraw" onclick="submitWithdrawal()" class="w-full bg-emerald-500 hover:bg-emerald-400 text-darkbg font-bold py-3.5 rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-all flex justify-center items-center gap-2">
+                <i class="fa-solid fa-paper-plane"></i> Ajukan Penarikan
+            </button>
+        </div>
+    </div>
+</div>
+

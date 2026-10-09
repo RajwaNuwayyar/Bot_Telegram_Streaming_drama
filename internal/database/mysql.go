@@ -559,3 +559,24 @@ func (r *MySQLRepo) GetRevenueSummary() (map[string]float64, error) {
 
 	return summary, nil
 }
+
+// CompleteAffiliateWithdrawal menandai penarikan selesai dan mengembalikan telegram_user_id
+func (m *MySQLRepo) CompleteAffiliateWithdrawal(wdID int64) (int64, error) {
+	var telegramID int64
+	err := m.db.QueryRow("SELECT u.telegram_user_id FROM affiliate_withdrawals w JOIN users u ON w.user_id = u.id WHERE w.id = ?", wdID).Scan(&telegramID)
+	if err != nil {
+		return 0, fmt.Errorf("penarikan tidak ditemukan: %w", err)
+	}
+
+	res, err := m.db.Exec("UPDATE affiliate_withdrawals SET status = 'terkirim', processed_at = NOW() WHERE id = ?", wdID)
+	if err != nil {
+		return 0, err
+	}
+
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return 0, fmt.Errorf("tidak ada baris yang diupdate, mungkin ID salah atau status bukan pending")
+	}
+
+	return telegramID, nil
+}

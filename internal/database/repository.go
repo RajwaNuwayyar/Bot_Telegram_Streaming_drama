@@ -33,4 +33,7 @@ type Repository interface {
 	MarkTransactionPaid(trxCode string) (*Transaction, error)
 	CancelTransaction(trxCode string) error
 	GetRevenueSummary() (map[string]float64, error)
+
+	// Affiliate
+	CompleteAffiliateWithdrawal(wdID int64) (telegramID int64, err error)
 }

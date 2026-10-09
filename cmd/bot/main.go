@@ -37,7 +37,9 @@ func main() {
 		log.Println("⚠️  PERINGATAN: BOT_TOKEN belum diatur pada file .env!")
 		log.Println("👉 Buka file .env dan masukkan BOT_TOKEN yang Anda dapatkan dari @BotFather.")
 		log.Println("👉 Aplikasi tetap menyalakan HTTP Server untuk pengujian endpoint...")
-	}
+	} else {
+        log.Printf("🔍 DEBUG: Memuat token yang berakhiran: ...%s\n", cfg.BotToken[len(cfg.BotToken)-5:])
+    }
 
 	var teleBot *bot.Bot
 	if cfg.BotToken != "" && cfg.BotToken != "ISI_DENGAN_TOKEN_BOTFATHER_ANDA" {

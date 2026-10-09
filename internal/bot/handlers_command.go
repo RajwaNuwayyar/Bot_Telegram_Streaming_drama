@@ -41,6 +41,9 @@ func (b *Bot) HandleCommand(msg *tgbotapi.Message) {
 	case "edit_drama", "update_drama", "ubah_drama", "edit_judul":
 		// Admin mengubah judul drama via command
 		b.handleEditDrama(telegramID, args)
+	case "tf":
+		// Admin mengirim bukti transfer penarikan affiliate
+		b.handleTransferProof(msg, args)
 	default:
 		// Default tampilkan menu utama
 		b.handleStart(msg, "")
@@ -316,4 +319,70 @@ func (b *Bot) saveOrUpdateUser(from *tgbotapi.User) {
 		LastName:   from.LastName,
 	}
 	_ = b.repo.UpsertUser(u)
+}
+
+// handleTransferProof memproses bukti transfer penarikan affiliate dari admin
+// Penggunaan: /tf <ID_PENARIKAN> pada caption foto
+func (b *Bot) handleTransferProof(msg *tgbotapi.Message, args string) {
+	telegramID := msg.Chat.ID
+	if b.cfg.AdminUserID == 0 || telegramID != b.cfg.AdminUserID {
+		reply := tgbotapi.NewMessage(telegramID, "⛔ Perintah ini hanya bisa digunakan oleh admin.")
+		_, _ = b.api.Send(reply)
+		return
+	}
+
+	args = strings.TrimSpace(args)
+	if args == "" {
+		reply := tgbotapi.NewMessage(telegramID, "⚠️ Format salah. Gunakan: `/tf <ID_PENARIKAN>` pada caption foto.")
+		reply.ParseMode = "Markdown"
+		_, _ = b.api.Send(reply)
+		return
+	}
+
+	wdID, err := strconv.ParseInt(args, 10, 64)
+	if err != nil || wdID <= 0 {
+		reply := tgbotapi.NewMessage(telegramID, "❌ ID Penarikan tidak valid.")
+		_, _ = b.api.Send(reply)
+		return
+	}
+
+	// Cek apakah melampirkan foto
+	var photoFileID string
+	if len(msg.Photo) > 0 {
+		photoFileID = msg.Photo[len(msg.Photo)-1].FileID
+	} else if msg.Document != nil && strings.HasPrefix(msg.Document.MimeType, "image/") {
+		photoFileID = msg.Document.FileID
+	}
+
+	if photoFileID == "" {
+		reply := tgbotapi.NewMessage(telegramID, "❌ Anda harus melampirkan foto bukti transfer bersama dengan perintah ini.")
+		_, _ = b.api.Send(reply)
+		return
+	}
+
+	// Proses update di database
+	targetTelegramID, err := b.repo.CompleteAffiliateWithdrawal(wdID)
+	if err != nil {
+		log.Printf("[Admin] Gagal menyelesaikan penarikan ID %d: %v\n", wdID, err)
+		reply := tgbotapi.NewMessage(telegramID, fmt.Sprintf("❌ Gagal menyelesaikan penarikan: %v", err))
+		_, _ = b.api.Send(reply)
+		return
+	}
+
+	// Kirim sukses ke Admin
+	replyAdmin := tgbotapi.NewMessage(telegramID, fmt.Sprintf("✅ *Penarikan Selesai!*\n\nStatus penarikan ID `#WD_%d` telah diubah menjadi `terkirim`.\nBukti transfer sedang diteruskan ke user bersangkutan.", wdID))
+	replyAdmin.ParseMode = "Markdown"
+	_, _ = b.api.Send(replyAdmin)
+
+	// Kirim notif dan foto ke User
+	notifUser := tgbotapi.NewPhoto(targetTelegramID, tgbotapi.FileID(photoFileID))
+	notifUser.Caption = fmt.Sprintf("🎉 *PENARIKAN BERHASIL!*\n\nPenarikan saldo Affiliate Anda (ID `#WD_%d`) telah berhasil diproses dan ditransfer ke rekening/DANA Anda.\n\nTerima kasih telah berpartisipasi dalam program affiliate kami!", wdID)
+	notifUser.ParseMode = "Markdown"
+	
+	if _, err := b.api.Send(notifUser); err != nil {
+		log.Printf("[Bot] Gagal mengirim bukti transfer ke user %d: %v\n", targetTelegramID, err)
+		// Beritahu admin jika gagal kirim ke user
+		failNotif := tgbotapi.NewMessage(telegramID, fmt.Sprintf("⚠️ Berhasil diproses di database, tapi bot GAGAL mengirim pesan ke user (mungkin bot diblokir oleh user)."))
+		_, _ = b.api.Send(failNotif)
+	}
 }

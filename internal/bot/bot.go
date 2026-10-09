@@ -3,6 +3,7 @@ package bot
 import (
 	"fmt"
 	"log"
+	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"dramabot/internal/config"
@@ -85,6 +86,14 @@ func (b *Bot) Start() {
 				continue
 			}
 
+			// Cek upload bukti transfer dari admin ke bot dengan tag #WD_
+			if update.Message.From != nil && b.cfg.AdminUserID != 0 && update.Message.From.ID == b.cfg.AdminUserID {
+				if hasAffiliateTransferTag(update.Message) {
+					go b.handleTransferProof(update.Message, extractWithdrawalID(update.Message.Caption))
+					continue
+				}
+			}
+
 			// Pesan teks biasa / tombol reply keyboard
 			go b.HandleTextMessage(update.Message)
 		}
@@ -134,4 +143,40 @@ func (b *Bot) NotifyPaymentSuccess(tx *database.Transaction) error {
 // GetAPI mengembalikan instance underlying bot API untuk integrasi tambahan
 func (b *Bot) GetAPI() *tgbotapi.BotAPI {
 	return b.api
+}
+
+// hasAffiliateTransferTag mengecek apakah pesan mengandung tag #WD_ (bukti tf admin)
+func hasAffiliateTransferTag(msg *tgbotapi.Message) bool {
+	if msg == nil {
+		return false
+	}
+	// Pastikan ada foto atau dokumen
+	if len(msg.Photo) == 0 && msg.Document == nil {
+		return false
+	}
+	caption := strings.ToUpper(msg.Caption)
+	return strings.Contains(caption, "#WD_")
+}
+
+// extractWithdrawalID mengekstrak ID numerik dari teks seperti #WD_123
+func extractWithdrawalID(caption string) string {
+	caption = strings.ToUpper(caption)
+	idx := strings.Index(caption, "#WD_")
+	if idx == -1 {
+		return ""
+	}
+	
+	// potong mulai dari karakter setelah #WD_
+	sub := caption[idx+4:]
+	
+	// ambil angka sampai spasi atau karakter non-digit
+	idStr := ""
+	for _, char := range sub {
+		if char >= '0' && char <= '9' {
+			idStr += string(char)
+		} else {
+			break
+		}
+	}
+	return idStr
 }
