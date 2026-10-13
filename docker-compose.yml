@@ -1,16 +1,50 @@
 version: '3.8'
 
 services:
-  bot-app:
-    build: .
-    container_name: dramabot_app
-    restart: unless-stopped
+  db:
+    image: mysql:8.0
+    container_name: telegram_bot_db
+    restart: always
+    environment:
+      MYSQL_DATABASE: drama_bot # Sesuaikan dengan nama DB kamu
+      MYSQL_USER: bot_user
+      MYSQL_PASSWORD: bot_password
+      MYSQL_ROOT_PASSWORD: root_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      # Auto-import skema dan data awal saat container pertama kali dibuat
+      - ./database/schema_v5_final.sql:/docker-entrypoint-initdb.d/1_schema.sql
+      - ./database/seed_data.sql:/docker-entrypoint-initdb.d/2_seed.sql
+      - ./database/procedures.sql:/docker-entrypoint-initdb.d/3_procedures.sql
+      - ./database/scheduled_events.sql:/docker-entrypoint-initdb.d/4_events.sql
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.php
+    container_name: telegram_bot_php
+    restart: always
+    ports:
+      - "8080:80" # Akses web PHP di http://localhost:8080
+    volumes:
+      - ./:/var/www/html/ # Sinkronisasi folder lokal dengan web server
+    depends_on:
+      - db
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile # Menggunakan Dockerfile Golang lama kamu
+    container_name: telegram_bot_golang
+    restart: always
+    depends_on:
+      - db
     env_file:
       - .env
-    ports:
-      - "8080:8080"
-    volumes:
-      - bot_data:/app
+    environment:
+      - DATABASE_DSN=bot_user:bot_password@tcp(db:3306)/drama_bot?parseTime=true&charset=utf8mb4
 
 volumes:
-  bot_data:
+  db_data:

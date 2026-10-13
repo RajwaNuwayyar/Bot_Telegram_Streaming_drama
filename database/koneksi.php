@@ -1,7 +1,7 @@
 <?php
-$host = "localhost";
-$user = "root";
-$pass = ""; // Sesuaikan password database Anda
+$host = "db";
+$user = "bot_user";
+$pass = "bot_password"; // Sesuaikan password database Anda
 $db   = "drama_bot"; // Ganti dengan nama database Anda yang sebenarnya
 
 try {
