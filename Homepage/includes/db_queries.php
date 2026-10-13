@@ -132,7 +132,17 @@ function getDramas($pdo, $limit = 20, $category_id = null, $search = null) {
         }
 
         if ($search) {
-            $sql .= " AND (d.title LIKE ? OR d.description LIKE ?) ";
+            $sql .= " AND (
+                d.title LIKE ? 
+                OR d.description LIKE ? 
+                OR EXISTS (
+                    SELECT 1 FROM drama_categories dc_s 
+                    JOIN categories c_s ON c_s.id = dc_s.category_id 
+                    WHERE dc_s.drama_id = d.id AND (c_s.name LIKE ? OR c_s.slug LIKE ?)
+                )
+            ) ";
+            $params[] = "%{$search}%";
+            $params[] = "%{$search}%";
             $params[] = "%{$search}%";
             $params[] = "%{$search}%";
         }
