@@ -152,7 +152,12 @@ func (r *SQLiteRepo) UpsertUser(u *User) error {
 		last_name = excluded.last_name,
 		updated_at = excluded.updated_at;
 	`
-	_, err := r.db.Exec(query, u.TelegramID, u.Username, u.FirstName, u.LastName, u.VIPUntil, now, now)
+	// Kirim nil (NULL) jika vip_until kosong, agar tidak menyimpan zero-value datetime
+	var vipUntil interface{}
+	if !u.VIPUntil.IsZero() {
+		vipUntil = u.VIPUntil
+	}
+	_, err := r.db.Exec(query, u.TelegramID, u.Username, u.FirstName, u.LastName, vipUntil, now, now)
 	return err
 }
 
