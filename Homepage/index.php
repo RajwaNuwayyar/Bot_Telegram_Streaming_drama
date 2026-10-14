@@ -1,5 +1,11 @@
 <?php
 session_start();
+// Cegah browser & Telegram WebView menyimpan cache tampilan lama
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
+header("Expires: 0");
+
 require_once __DIR__ . '/../database/koneksi.php';
 require_once __DIR__ . '/includes/db_queries.php';
 
@@ -15,6 +21,9 @@ if (!in_array($page, $allowed_pages)) {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>DramaStream Mini App</title>
     <!-- Telegram Web App SDK -->

@@ -113,14 +113,9 @@ $bot_username = "TreadLessBot";
                         </p>
 
                         <!-- Progress Bar Row -->
-                        <div class="flex items-center gap-3 mb-1.5">
-                            <div class="flex-1 h-1.5 bg-darkbg rounded-full overflow-hidden border border-white/5">
-                                <div class="h-full bg-gradient-to-r from-accentdark to-accent rounded-full transition-all duration-500" 
-                                     style="width: <?php echo $percent; ?>%"></div>
-                            </div>
-                            <span class="text-[10px] font-medium <?php echo $item['is_completed'] ? 'text-accent' : 'text-textmuted'; ?> w-16 text-right shrink-0">
-                                <?php echo $item['is_completed'] ? 'Selesai' : ($percent . '% tonton'); ?>
-                            </span>
+                        <div class="w-full h-1 bg-darkbg rounded-full overflow-hidden border border-white/5 mb-2">
+                            <div class="h-full bg-gradient-to-r from-accentdark to-accent rounded-full transition-all duration-500" 
+                                 style="width: <?php echo $percent; ?>%"></div>
                         </div>
 
                         <!-- Genre and Action Tags -->
