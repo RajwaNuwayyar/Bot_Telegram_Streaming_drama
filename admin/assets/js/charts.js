@@ -1,9 +1,11 @@
 /**
  * Charts Engine for Dashboard Admin Drama Stream
- * Powered by Chart.js 4.x
+ * Powered by Chart.js 4.x - Terhubung dengan Data Riil Database
  */
 
 document.addEventListener('DOMContentLoaded', function () {
+    const dData = window.dashboardData || {};
+
     // 1. Inisialisasi Grafik Tren Pendapatan (Revenue Line Chart)
     const revenueCtx = document.getElementById('revenueChart');
     if (revenueCtx) {
@@ -14,18 +16,21 @@ document.addEventListener('DOMContentLoaded', function () {
         gradient.addColorStop(0, 'rgba(0, 208, 182, 0.45)');
         gradient.addColorStop(1, 'rgba(0, 208, 182, 0.0)');
 
+        const labels = dData.revenueLabels || ['Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt (Berjalan)'];
+        const values = dData.revenueData || [0, 0, 0, 0, 6000, 57000];
+
         new Chart(revenueCtx, {
             type: 'line',
             data: {
-                labels: ['Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt (Berjalan)'],
+                labels: labels,
                 datasets: [{
                     label: 'Pendapatan VIP (Rp)',
-                    data: [1850000, 2400000, 3100000, 4250000, 3950000, 4820000],
+                    data: values,
                     borderColor: '#00D0B6',
                     borderWidth: 3,
                     backgroundColor: gradient,
                     fill: true,
-                    tension: 0.4,
+                    tension: 0.35,
                     pointBackgroundColor: '#00D0B6',
                     pointBorderColor: '#0F172A',
                     pointBorderWidth: 2,
@@ -49,7 +54,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         padding: 12,
                         callbacks: {
                             label: function(context) {
-                                let val = context.parsed.y;
+                                let val = context.parsed.y || 0;
                                 return ' Pendapatan: Rp ' + val.toLocaleString('id-ID');
                             }
                         }
@@ -71,7 +76,12 @@ document.addEventListener('DOMContentLoaded', function () {
                         ticks: {
                             color: '#94A3B8',
                             callback: function(value) {
-                                return 'Rp ' + (value / 1000000).toFixed(1) + 'M';
+                                if (value >= 1000000) {
+                                    return 'Rp ' + (value / 1000000).toFixed(1) + ' jt';
+                                } else if (value >= 1000) {
+                                    return 'Rp ' + (value / 1000).toFixed(0) + ' rb';
+                                }
+                                return 'Rp ' + value;
                             }
                         }
                     }
@@ -83,12 +93,15 @@ document.addEventListener('DOMContentLoaded', function () {
     // 2. Inisialisasi Grafik Komposisi Pelanggan (User Composition Doughnut)
     const userCompCtx = document.getElementById('userCompositionChart');
     if (userCompCtx) {
+        const uLabels = dData.userLabels || ['Pelanggan Reguler (Free)', 'Pelanggan VIP Aktif', 'Pelanggan Banned'];
+        const uValues = dData.userData || [7, 1, 0];
+
         new Chart(userCompCtx, {
             type: 'doughnut',
             data: {
-                labels: ['Pelanggan Reguler (Free)', 'Pelanggan VIP Aktif', 'Pelanggan Banned'],
+                labels: uLabels,
                 datasets: [{
-                    data: [2932, 488, 12],
+                    data: uValues,
                     backgroundColor: [
                         '#3B82F6', // Blue Free
                         '#00D0B6', // Teal VIP
@@ -108,9 +121,10 @@ document.addEventListener('DOMContentLoaded', function () {
                         position: 'bottom',
                         labels: {
                             color: '#94A3B8',
-                            padding: 16,
+                            padding: 14,
                             usePointStyle: true,
-                            pointStyle: 'circle'
+                            pointStyle: 'circle',
+                            font: { size: 11 }
                         }
                     },
                     tooltip: {
@@ -123,41 +137,6 @@ document.addEventListener('DOMContentLoaded', function () {
                                 return ` ${label}: ${value.toLocaleString('id-ID')} user`;
                             }
                         }
-                    }
-                }
-            }
-        });
-    }
-
-    // 3. Inisialisasi Grafik Transaksi Mingguan (Weekly Volume Bar Chart)
-    const txWeeklyCtx = document.getElementById('weeklyTxChart');
-    if (txWeeklyCtx) {
-        new Chart(txWeeklyCtx, {
-            type: 'bar',
-            data: {
-                labels: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'],
-                datasets: [{
-                    label: 'Transaksi VIP',
-                    data: [14, 21, 18, 29, 36, 48, 42],
-                    backgroundColor: 'rgba(56, 189, 248, 0.8)',
-                    borderRadius: 6,
-                    hoverBackgroundColor: '#00D0B6'
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false }
-                },
-                scales: {
-                    x: {
-                        grid: { display: false },
-                        ticks: { color: '#94A3B8' }
-                    },
-                    y: {
-                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
-                        ticks: { color: '#94A3B8', precision: 0 }
                     }
                 }
             }

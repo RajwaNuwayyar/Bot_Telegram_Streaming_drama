@@ -78,7 +78,7 @@ if ($db) {
 
                 <div class="p-4 rounded-xl bg-slate-900/80 border border-white/5 space-y-1">
                     <p class="font-bold text-white">3. Sesuaikan Konfigurasi</p>
-                    <p class="text-slate-400">Jika nama database, username, atau password berbeda, cukup ubah file <span class="text-[#00D0B6] font-mono">Dashboard Admin/config/database.php</span>.</p>
+                    <p class="text-slate-400">Jika nama database, username, atau password berbeda, cukup ubah file <span class="text-[#00D0B6] font-mono">admin/config/database.php</span>.</p>
                 </div>
             </div>
         </div>
