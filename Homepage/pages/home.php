@@ -24,8 +24,8 @@ $bot_username = "TreadLessBot";
             <!-- Mini Popup -->
             <div id="profile-popup" class="hidden absolute right-0 top-11 w-48 bg-[#141C2B] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 backdrop-blur-md">
                 <div class="px-4 py-3 border-b border-white/5">
-                    <p id="popup-username" class="text-sm font-bold text-white truncate">DramaFan</p>
-                    <p id="popup-handle" class="text-[11px] text-textmuted truncate">@dramafan99</p>
+                    <p id="popup-username" class="text-sm font-bold text-white truncate">—</p>
+                    <p id="popup-handle" class="text-[11px] text-textmuted truncate"></p>
                 </div>
                 <a href="?page=profile" class="flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors">
                     <i class="fa-regular fa-user text-accent text-sm w-4 text-center"></i>
@@ -40,13 +40,23 @@ $bot_username = "TreadLessBot";
     </div>
 
     <!-- Search Bar -->
-    <div class="relative mb-3.5">
-        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-textmuted">
-            <i class="fa-solid fa-magnifying-glass text-sm"></i>
+    <div class="relative mb-3.5 flex gap-2">
+        <div class="relative flex-1">
+            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-textmuted">
+                <i class="fa-solid fa-magnifying-glass text-sm"></i>
+            </div>
+            <input type="text" id="drama-search-input"
+                onkeydown="if(event.key==='Enter'){submitSearch();}"
+                data-i18n-placeholder="search_placeholder"
+                class="w-full bg-cardbg border border-white/10 rounded-2xl py-3 pl-10 pr-10 text-sm text-white placeholder-textmuted focus:outline-none focus:border-accent/60 transition-all shadow-inner"
+                placeholder="Cari drama, judul...">
+            <button id="search-clear-btn" onclick="clearDramaSearch()" class="hidden absolute inset-y-0 right-0 pr-3.5 flex items-center text-textmuted hover:text-white">
+                <i class="fa-solid fa-circle-xmark text-sm"></i>
+            </button>
         </div>
-        <input type="text" id="drama-search-input" oninput="filterDramasBySearch()" data-i18n-placeholder="search_placeholder" class="w-full bg-cardbg border border-white/10 rounded-2xl py-3 pl-10 pr-10 text-sm text-white placeholder-textmuted focus:outline-none focus:border-accent/60 transition-all shadow-inner" placeholder="Cari drama, judul, genre...">
-        <button id="search-clear-btn" onclick="clearDramaSearch()" class="hidden absolute inset-y-0 right-0 pr-3.5 flex items-center text-textmuted hover:text-white">
-            <i class="fa-solid fa-circle-xmark text-sm"></i>
+        <!-- Tombol Cari eksplisit untuk mobile -->
+        <button onclick="submitSearch()" class="shrink-0 px-4 py-3 bg-accent hover:bg-accentdark text-darkbg font-bold text-sm rounded-2xl shadow-md transition-all active:scale-95">
+            Cari
         </button>
     </div>
 
@@ -66,6 +76,7 @@ $bot_username = "TreadLessBot";
         </a>
     </div>
 
+    <?php if (!empty($categories)): ?>
     <!-- Genre Pills -->
     <div class="flex overflow-x-auto gap-2.5 pb-2 mb-6 hide-scroll" id="genre-pills-container">
         <button onclick="filterDramasByGenre('all', this)" class="genre-pill whitespace-nowrap px-4 py-2 rounded-full bg-accent text-darkbg font-semibold text-xs transition-all shadow-sm">
@@ -79,12 +90,13 @@ $bot_username = "TreadLessBot";
             </button>
         <?php endforeach; ?>
     </div>
+    <?php endif; ?>
 
     <!-- Featured Banners Section -->
     <div class="mb-6">
         <div class="flex justify-between items-center mb-3">
             <h2 class="text-base font-bold text-white flex items-center gap-2">
-                <i class="fa-solid fa-fire text-accent text-sm"></i> Unggulan Hari Ini
+                <i class="fa-solid fa-fire text-accent text-sm"></i> Drama Populer
             </h2>
             <span class="text-[11px] text-textmuted">Geser untuk melihat</span>
         </div>
@@ -138,11 +150,8 @@ $bot_username = "TreadLessBot";
                             <?php endif; ?>
 
                             <div class="flex items-center justify-between text-xs text-textmuted pt-1 border-t border-white/10">
-                                <span class="flex items-center gap-1.5 text-yellow-400 font-semibold text-[11px]">
-                                    <i class="fa-solid fa-star text-[10px]"></i> 4.9
-                                </span>
                                 <span class="text-[11px] text-white/60">
-                                    <i class="fa-regular fa-eye mr-1"></i><?php echo number_format($fb['views_count']); ?> ditonton
+                                    <?php echo (int)$fb['total_episodes']; ?> Episode
                                 </span>
                             </div>
                         </div>
@@ -152,10 +161,10 @@ $bot_username = "TreadLessBot";
         </div>
     </div>
 
-    <!-- Trending Now / Drama List Grid -->
+    <!-- Drama List Grid -->
     <div class="flex justify-between items-end mb-4">
         <div>
-            <h2 data-i18n="trending_now" class="text-lg font-bold text-white">Trending Sekarang</h2>
+            <h2 class="text-lg font-bold text-white">Semua Drama</h2>
             <p class="text-[11px] text-textmuted">Koleksi mini-drama terlengkap</p>
         </div>
         <span id="drama-count-label" class="text-xs text-accent font-medium">
@@ -206,10 +215,7 @@ $bot_username = "TreadLessBot";
                             </span>
                         </div>
 
-                        <!-- Rating Badge on Top Right -->
-                        <div class="absolute top-2.5 right-2.5 px-1.5 py-0.5 rounded-md bg-darkbg/80 backdrop-blur-md text-[10px] font-bold text-yellow-400 flex items-center gap-1 border border-white/10 shadow-sm">
-                            <i class="fa-solid fa-star text-[9px]"></i> 4.8
-                        </div>
+
 
                         <!-- Play Icon Button overlay on hover -->
                         <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-darkbg/40 backdrop-blur-[2px]">
@@ -222,9 +228,6 @@ $bot_username = "TreadLessBot";
                         <div class="absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between text-[11px] text-white/90">
                             <span class="font-medium bg-darkbg/60 px-2 py-0.5 rounded-md backdrop-blur-sm border border-white/5">
                                 <?php echo $epCount; ?> Episode
-                            </span>
-                            <span class="text-[10px] text-textmuted">
-                                <i class="fa-solid fa-eye text-[9px]"></i> <?php echo number_format($d['views_count']); ?>
                             </span>
                         </div>
                     </div>
@@ -248,10 +251,8 @@ $bot_username = "TreadLessBot";
     <!-- Server-Side Search Script logic replaced below -->
 </div>
 
-<!-- Home Interactivity Script -->
 <script>
 let currentGenre = 'all';
-let searchTimeout = null;
 let originalCardsHTML = '';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -259,12 +260,24 @@ document.addEventListener('DOMContentLoaded', () => {
     if (grid) {
         originalCardsHTML = grid.innerHTML;
     }
+    // Tampilkan/sembunyikan tombol clear saat user mengetik (tanpa trigger filter)
+    const input = document.getElementById('drama-search-input');
+    if (input) {
+        input.addEventListener('input', () => {
+            const clearBtn = document.getElementById('search-clear-btn');
+            if (input.value.trim().length > 0) {
+                clearBtn.classList.remove('hidden');
+            } else {
+                clearBtn.classList.add('hidden');
+            }
+        });
+    }
 });
 
+// Filter genre pill — tetap instan tanpa perlu Enter
 function filterDramasByGenre(slug, btn) {
     currentGenre = slug;
-    
-    // Update pill buttons style
+
     document.querySelectorAll('.genre-pill').forEach(b => {
         b.classList.remove('bg-accent', 'text-darkbg', 'font-semibold');
         b.classList.add('bg-cardbg', 'border', 'border-white/5', 'text-textmuted');
@@ -272,32 +285,29 @@ function filterDramasByGenre(slug, btn) {
     btn.classList.add('bg-accent', 'text-darkbg', 'font-semibold');
     btn.classList.remove('bg-cardbg', 'border', 'border-white/5', 'text-textmuted');
 
+    // Reset search input saat ganti genre agar tidak membingungkan
+    const input = document.getElementById('drama-search-input');
+    if (input) input.value = '';
+    document.getElementById('search-clear-btn')?.classList.add('hidden');
+
     applyFilters();
 }
 
-function filterDramasBySearch() {
+// Dipanggil saat user tekan Enter atau klik tombol Cari
+function submitSearch() {
     const input = document.getElementById('drama-search-input');
-    const clearBtn = document.getElementById('search-clear-btn');
-    if (input.value.trim().length > 0) {
-        clearBtn.classList.remove('hidden');
-    } else {
-        clearBtn.classList.add('hidden');
-    }
-    
-    // 1. Jalankan pencarian instan pada elemen DOM yang ada
-    instantClientFilter();
-
-    // 2. Debounce query ke server untuk database penuh
-    if (searchTimeout) clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(applyFilters, 300);
+    if (!input) return;
+    // Sembunyikan keyboard virtual di mobile
+    input.blur();
+    applyFilters();
 }
 
+// Reset pencarian dan tampilkan semua drama kembali
 function clearDramaSearch() {
     const input = document.getElementById('drama-search-input');
     input.value = '';
     document.getElementById('search-clear-btn').classList.add('hidden');
-    
-    // Pulihkan daftar drama awal secara instan jika ada
+
     const grid = document.getElementById('dramas-grid');
     if (grid && originalCardsHTML && currentGenre === 'all') {
         grid.innerHTML = originalCardsHTML;
@@ -309,49 +319,34 @@ function clearDramaSearch() {
     applyFilters();
 }
 
-// Pencarian cepat instan di sisi klien
-function instantClientFilter() {
-    const searchVal = document.getElementById('drama-search-input').value.trim().toLowerCase();
-    const grid = document.getElementById('dramas-grid');
-    if (!grid) return;
-
-    let cards = grid.querySelectorAll('.drama-card');
-    
-    // Jika kartu sebelumnya digantikan div 'Tidak Ditemukan', pulihkan dari originalCardsHTML
-    if (cards.length === 0 && originalCardsHTML && originalCardsHTML.includes('drama-card')) {
-        grid.innerHTML = originalCardsHTML;
-        cards = grid.querySelectorAll('.drama-card');
-    }
-
-    if (!cards || cards.length === 0) return;
-
-    let visibleCount = 0;
-    cards.forEach(card => {
-        const title = (card.getAttribute('data-title') || '').toLowerCase();
-        const cat = (card.getAttribute('data-category') || '').toLowerCase();
-
-        const matchSearch = (searchVal === '' || title.includes(searchVal));
-        const matchGenre = (currentGenre === 'all' || cat === currentGenre.toLowerCase());
-
-        if (matchSearch && matchGenre) {
-            card.style.display = '';
-            visibleCount++;
-        } else {
-            card.style.display = 'none';
-        }
-    });
-
-    const countLabel = document.getElementById('drama-count-label');
-    if (countLabel) {
-        countLabel.textContent = visibleCount + ' Drama';
-    }
+// Empty state HTML saat tidak ada hasil
+function emptyStateHTML(query) {
+    const msg = query
+        ? `Drama <strong>"${query}"</strong> tidak ditemukan`
+        : 'Belum ada drama di kategori ini';
+    return `
+        <div class="col-span-2 py-14 flex flex-col items-center justify-center text-center">
+            <div class="w-16 h-16 rounded-full bg-cardbg border border-white/10 flex items-center justify-center mb-4 text-textmuted">
+                <i class="fa-solid fa-film text-2xl text-accent/60"></i>
+            </div>
+            <h4 class="font-bold text-white mb-1.5">Drama Tidak Ditemukan</h4>
+            <p class="text-xs text-textmuted max-w-[240px] leading-relaxed mb-5">${msg}.<br>Coba kata kunci lain atau request drama favoritmu!</p>
+            <a href="?page=request" class="px-5 py-2.5 bg-accent hover:bg-accentdark text-darkbg font-bold text-xs rounded-xl shadow-md shadow-accent/20 transition-all active:scale-95 flex items-center gap-2">
+                <i class="fa-solid fa-pen-to-square text-[10px]"></i> Request Drama
+            </a>
+        </div>`;
 }
 
-// Pencarian lengkap ke server API
+// Kirim query ke server API
 function applyFilters() {
     const searchVal = document.getElementById('drama-search-input').value.trim();
     const grid = document.getElementById('dramas-grid');
     if (!grid) return;
+
+    const countLabel = document.getElementById('drama-count-label');
+
+    // Tampilkan loading state singkat
+    grid.style.opacity = '0.5';
 
     const apiUrl = `api/search.php?q=${encodeURIComponent(searchVal)}&cat=${encodeURIComponent(currentGenre)}`;
 
@@ -361,19 +356,33 @@ function applyFilters() {
             return res.text();
         })
         .then(html => {
-            if (html.trim().length > 0) {
+            grid.style.opacity = '1';
+            const count = (html.match(/class="drama-card/g) || []).length;
+            if (count === 0) {
+                // Tidak ada hasil — tampilkan empty state
+                grid.innerHTML = emptyStateHTML(searchVal);
+                if (countLabel) countLabel.textContent = '0 Drama';
+            } else {
                 grid.innerHTML = html;
-                const count = (html.match(/class="drama-card/g) || []).length;
-                const countLabel = document.getElementById('drama-count-label');
-                if (countLabel) {
-                    countLabel.textContent = count + ' Drama';
-                }
+                if (countLabel) countLabel.textContent = count + ' Drama';
             }
         })
         .catch(err => {
-            console.warn('Server search fallback to client filtering:', err);
-            // Jika request gagal, gunakan fallback filter client-side tanpa merusak tampilan
-            instantClientFilter();
+            grid.style.opacity = '1';
+            console.warn('Search API error, fallback ke client filter:', err);
+            // Fallback filter client-side
+            const searchLower = searchVal.toLowerCase();
+            let visible = 0;
+            grid.querySelectorAll('.drama-card').forEach(card => {
+                const title = (card.getAttribute('data-title') || '').toLowerCase();
+                const cat = (card.getAttribute('data-category') || '').toLowerCase();
+                const matchSearch = !searchLower || title.includes(searchLower);
+                const matchGenre = currentGenre === 'all' || cat === currentGenre.toLowerCase();
+                card.style.display = (matchSearch && matchGenre) ? '' : 'none';
+                if (matchSearch && matchGenre) visible++;
+            });
+            if (visible === 0) grid.innerHTML = emptyStateHTML(searchVal);
+            if (countLabel) countLabel.textContent = visible + ' Drama';
         });
 }
 </script>

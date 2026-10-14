@@ -1,11 +1,31 @@
 package bot
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
+
+// sendProtectedCopyMessage mengirim video dengan protect_content=true menggunakan raw API call.
+// Ini diperlukan karena library v5.5.1 belum memiliki field ProtectContent di CopyMessageConfig.
+func (b *Bot) sendProtectedCopyMessage(toChatID int64, fromChatID int64, messageID int) (tgbotapi.Message, error) {
+	params := tgbotapi.Params{}
+	params.AddNonZero64("chat_id", toChatID)
+	params.AddNonZero64("from_chat_id", fromChatID)
+	params.AddNonZero("message_id", messageID)
+	params["protect_content"] = "true" // 🔒 Mencegah user mem-forward atau menyimpan/download video
+
+	resp, err := b.api.MakeRequest("copyMessage", params)
+	if err != nil {
+		return tgbotapi.Message{}, err
+	}
+
+	var msg tgbotapi.Message
+	err = json.Unmarshal(resp.Result, &msg)
+	return msg, err
+}
 
 // SendEpisode memproses pengecekan akses hak tayang dan pengiriman video dari channel privat
 func (b *Bot) SendEpisode(telegramID int64, episodeID int64) error {
@@ -38,28 +58,26 @@ func (b *Bot) SendEpisode(telegramID int64, episodeID int64) error {
 		return err
 	}
 
-	// 4. Pengguna berhak menonton -> Kirim video dari channel privat
-	// Gunakan CopyMessage agar video tampil bersih tanpa tag "Forwarded from..."
-	copyMsg := tgbotapi.CopyMessageConfig{
-		BaseChat:   tgbotapi.BaseChat{ChatID: telegramID},
-		FromChatID: episode.ChannelID,
-		MessageID:  episode.MessageID,
-	}
-
-	sentMsg, err := b.api.CopyMessage(copyMsg)
+	// 4. Pengguna berhak menonton -> Kirim video dari channel privat dengan protect_content=true
+	// 🔒 protect_content mencegah user mem-forward atau menyimpan/download video
+	sentMsg, err := b.sendProtectedCopyMessage(telegramID, episode.ChannelID, episode.MessageID)
 	if err != nil {
 		log.Printf("[Video] Gagal CopyMessage (channel_id=%d, msg_id=%d): %v. Mencoba fallback sendVideo dengan file_id.\n",
 			episode.ChannelID, episode.MessageID, err)
 
-		// Fallback menggunakan FileID
-		videoConfig := tgbotapi.NewVideo(telegramID, tgbotapi.FileID(episode.FileID))
-		videoConfig.Caption = fmt.Sprintf("🎬 %s - Episode %d", episode.DramaTitle, episode.EpisodeNumber)
-		_, err = b.api.Send(videoConfig)
-		if err != nil {
-			log.Printf("[Video] Gagal fallback sendVideo: %v\n", err)
+		// Fallback menggunakan FileID via raw API call dengan protect_content=true
+		params := tgbotapi.Params{}
+		params.AddNonZero64("chat_id", telegramID)
+		params["video"] = episode.FileID
+		params["caption"] = fmt.Sprintf("🎬 %s - Episode %d", episode.DramaTitle, episode.EpisodeNumber)
+		params["protect_content"] = "true" // 🔒 Mencegah user mem-forward atau menyimpan/download video
+
+		_, fallbackErr := b.api.MakeRequest("sendVideo", params)
+		if fallbackErr != nil {
+			log.Printf("[Video] Gagal fallback sendVideo: %v\n", fallbackErr)
 			errorNotif := tgbotapi.NewMessage(telegramID, "⚠️ Terjadi kendala saat memuat file video dari server storage. Silakan coba kembali sesaat lagi.")
 			_, _ = b.api.Send(errorNotif)
-			return err
+			return fallbackErr
 		}
 	} else {
 		log.Printf("[Video] Berhasil mengirim video episode %d '%s' ke user %d (msg_id: %d)\n",
@@ -76,3 +94,5 @@ func (b *Bot) SendEpisode(telegramID int64, episodeID int64) error {
 	_, _ = b.api.Send(navMsg)
 	return nil
 }
+
+

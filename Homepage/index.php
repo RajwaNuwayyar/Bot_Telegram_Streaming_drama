@@ -100,12 +100,8 @@ if (!in_array($page, $allowed_pages)) {
             if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
                 return tg.initDataUnsafe.user;
             }
-            // Mock data untuk testing di browser biasa
-            return {
-                id: 12345678,
-                first_name: "DramaFan",
-                username: "dramafan99"
-            };
+            // Tidak ada data Telegram (dibuka di browser biasa)
+            return null;
         }
 
         // Toggle mini popup profil
@@ -133,13 +129,15 @@ if (!in_array($page, $allowed_pages)) {
             const profileAvatar = document.getElementById('profile-avatar');
 
             if (usernameElem && user) {
-                usernameElem.textContent = user.first_name || user.username;
+                usernameElem.textContent = user.first_name || user.username || 'Pengguna';
             }
             if (handleElem && user && user.username) {
                 handleElem.textContent = '@' + user.username;
             }
             if (popupUsername && user) {
-                popupUsername.textContent = user.first_name || user.username;
+                popupUsername.textContent = user.first_name || user.username || '';
+            } else if (popupUsername) {
+                popupUsername.textContent = 'Pengguna Telegram';
             }
             if (popupHandle && user && user.username) {
                 popupHandle.textContent = '@' + user.username;
