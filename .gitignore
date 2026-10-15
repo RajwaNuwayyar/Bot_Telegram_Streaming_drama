@@ -6,11 +6,12 @@
 *.dylib
 dramabot
 
-# Database & Environment
+# Database & Environment (Semua file .env di root maupun subfolder akan otomatis diabaikan)
 *.db
 *.db-journal
 .env
-
+*.env
+**/.env
 
 # Go workspace & vendor
 vendor/
@@ -19,14 +20,13 @@ vendor/
 /web_laravel/vendor/
 /web_laravel/node_modules/
 /web_laravel/public/build/
-/web_laravel/.env
 /web_laravel/storage/*.key
 
 # Python
-/bot_python/.env
 /bot_python/__pycache__/
 /bot_python/venv/
 /bot_python/env/
 
 # OS
 .DS_Store
+Thum.db
