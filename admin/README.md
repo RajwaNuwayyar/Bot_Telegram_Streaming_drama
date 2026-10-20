@@ -52,9 +52,9 @@ Dashboard Admin/
 
 2. **Akses Dashboard di Browser**:
    - Jika menggunakan PHP Built-in Server:  
-     `http://localhost:8000/Dashboard%20Admin/`
+     `http://localhost:8000/admin/`
    - Jika menggunakan XAMPP (htdocs):  
-     `http://localhost/Bot_Telegram_Streaming_drama-main/Dashboard%20Admin/`
+     `http://localhost/Bot_Telegram_Streaming_drama-main/admin/`
 
 3. **Kredensial Login Admin**:
    - **Username**: `admin`

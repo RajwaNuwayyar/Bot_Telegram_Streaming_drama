@@ -122,11 +122,15 @@ $currentPage = isset($_GET['page']) ? $_GET['page'] : 'overview';
 
                 <!-- Admin Profile Dropdown Pill -->
                 <div class="flex items-center gap-3 pl-3 sm:pl-4 border-l border-white/10">
-                    <img src="<?= $adminInfo['avatar']; ?>" alt="Admin Avatar" class="w-9 h-9 rounded-xl object-cover ring-2 ring-[#00D0B6]/30">
-                    <div class="hidden xl:block text-left">
-                        <p class="text-xs font-bold text-white"><?= htmlspecialchars($adminInfo['username']); ?></p>
-                        <p class="text-[10px] text-emerald-400 font-medium">Online • <?= $adminInfo['role']; ?></p>
-                    </div>
+                    <a href="index.php?page=settings#profile-section" class="flex items-center gap-2.5 group cursor-pointer" title="Kelola Profil & Password Akun">
+                        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#00D0B6] to-sky-400 text-slate-950 font-bold text-xs flex items-center justify-center ring-2 ring-[#00D0B6]/30 group-hover:scale-105 transition">
+                            <?= strtoupper(substr($adminInfo['full_name'] ?? $adminInfo['username'], 0, 1)); ?>
+                        </div>
+                        <div class="hidden xl:block text-left">
+                            <p class="text-xs font-bold text-white group-hover:text-[#00D0B6] transition"><?= htmlspecialchars($adminInfo['full_name'] ?? $adminInfo['username']); ?></p>
+                            <p class="text-[10px] text-emerald-400 font-medium">Online • <?= htmlspecialchars($adminInfo['role']); ?></p>
+                        </div>
+                    </a>
                     <a href="logout.php" class="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition" title="Logout">
                         <i class="fas fa-sign-out-alt"></i>
                     </a>

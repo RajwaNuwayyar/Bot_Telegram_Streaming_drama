@@ -350,3 +350,22 @@ CREATE TABLE search_logs (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
     INDEX idx_search_logs_created (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+-- ============================================================
+-- 16. ADMINISTRATOR PANEL (Multi-Admin Authentication)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS admins (
+    id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    username      VARCHAR(50)  NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    full_name     VARCHAR(100) NOT NULL,
+    role          ENUM('superadmin', 'admin') NOT NULL DEFAULT 'admin',
+    is_active     TINYINT(1)   NOT NULL DEFAULT 1,
+    last_login_at DATETIME     NULL,
+    created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_admin_username (username),
+    INDEX idx_admin_active (is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
