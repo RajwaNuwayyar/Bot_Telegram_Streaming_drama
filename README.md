@@ -78,8 +78,14 @@ graph TD
   - `#hapus_drama <Judul Drama>`: Menghapus seluruh judul drama dan relasinya secara permanen.
   - `#edit_drama <Judul Lama> | <Judul Baru>`: Memperbarui judul drama dan seluruh episodenya secara langsung.
   - `#set_poster <Judul> | <file_id>`: Memperbarui poster/thumbnail drama.
+  - `#edit_kategori <Nama Lama/ID> | <Nama Baru>`: Mengubah nama master kategori dan slug URL-nya.
+  - `#hapus_kategori <Nama/ID>`: Menghapus kategori dari database dan relasi drama.
+  - `#tambah_kategori <Nama>`: Menambahkan master kategori baru.
+  - `#list_kategori`: Menampilkan seluruh daftar kategori aktif dan jumlah dramanya.
+  - `#set_kategori <Judul> | <Kategori1>, <Kategori2>`: Menghubungkan kategori ke judul drama.
+  - Unggah video dengan tag `#<Kategori>` (contoh: `#Romantis`) untuk auto-assign kategori ke drama.
   - Unggah foto dengan tag `#poster` untuk auto-update thumbnail drama.
-  - Edit caption postingan di channel untuk auto-update judul drama & status VIP.
+  - Edit caption postingan di channel untuk auto-update judul drama, kategori & status VIP.
 - **Pengiriman Video Berkecepatan Tinggi**: Menggunakan metode `CopyMessage` dari channel privat tanpa watermark/forward header dan fallback `FileID`.
 - **Navigasi Episode Terpadu**: Tombol interaktif *Episode Sebelumnya*, *Episode Selanjutnya*, dan tombol pintas kembali ke Mini App.
 
@@ -327,7 +333,13 @@ docker-compose up --build -d
 - `#hapus_episode <message_id>` : Ditulis di channel privat untuk menghapus episode dari database.
 - `#hapus_drama <Judul Drama>` : Ditulis di channel privat untuk menghapus seluruh serial drama.
 - `#set_poster <Judul> | <file_id>` : Ditulis di channel privat untuk update poster drama.
-- **Edit Caption Video di Channel** : Otomatis mendeteksi pembaruan judul drama, nomor episode, dan tag `#vip`.
+- `#edit_kategori <Nama Lama/ID> | <Nama Baru>` : Ditulis di channel privat untuk mengubah nama & slug kategori drama.
+- `#hapus_kategori <Nama/ID>` : Ditulis di channel privat untuk menghapus kategori dari database.
+- `#tambah_kategori <Nama>` : Ditulis di channel privat untuk membuat kategori baru.
+- `#list_kategori` : Ditulis di channel privat untuk melihat semua kategori aktif.
+- `#set_kategori <Judul> | <Kategori>` : Ditulis di channel privat untuk assign/update kategori film.
+- **Upload Video + Tag `#<Kategori>`** : Otomatis mendeteksi kategori (contoh: `#Romantis`) dan menautkannya ke film.
+- **Edit Caption Video di Channel** : Otomatis mendeteksi pembaruan judul drama, nomor episode, kategori, dan tag `#vip`.
 - **Upload Gambar + Caption `#poster`** : Otomatis memperbarui thumbnail serial drama di database dan Mini App.
 
 ---

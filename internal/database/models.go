@@ -1,6 +1,9 @@
 package database
 
 import (
+	"fmt"
+	"regexp"
+	"strings"
 	"time"
 )
 
@@ -59,7 +62,28 @@ type Episode struct {
 	IsVIP           bool      `json:"is_vip"` // true jika hanya untuk member VIP
 	Caption         string    `json:"caption"`
 	ThumbnailFileID string    `json:"thumbnail_file_id"`
+	Categories      []string  `json:"categories,omitempty"`
 	CreatedAt       time.Time `json:"created_at"`
+}
+
+// Category merepresentasikan master genre / kategori drama
+type Category struct {
+	ID         int64  `json:"id"`
+	Name       string `json:"name"`
+	Slug       string `json:"slug"`
+	DramaCount int    `json:"drama_count,omitempty"`
+}
+
+// GenerateCategorySlug mengubah nama kategori menjadi slug URL-friendly
+func GenerateCategorySlug(name string) string {
+	slug := strings.ToLower(strings.TrimSpace(name))
+	reg := regexp.MustCompile(`[^a-z0-9]+`)
+	slug = reg.ReplaceAllString(slug, "-")
+	slug = strings.Trim(slug, "-")
+	if slug == "" {
+		slug = fmt.Sprintf("cat-%d", time.Now().UnixNano()%100000)
+	}
+	return slug
 }
 
 // TransactionStatus status pembayaran QRIS

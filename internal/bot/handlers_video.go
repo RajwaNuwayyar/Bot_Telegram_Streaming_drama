@@ -9,13 +9,16 @@ import (
 )
 
 // sendProtectedCopyMessage mengirim video dengan protect_content=true menggunakan raw API call.
-// Ini diperlukan karena library v5.5.1 belum memiliki field ProtectContent di CopyMessageConfig.
-func (b *Bot) sendProtectedCopyMessage(toChatID int64, fromChatID int64, messageID int) (tgbotapi.Message, error) {
+// Caption disesuaikan agar hanya menampilkan Judul Film dan Episode (bersih dari hashtag admin/kategori/vip).
+func (b *Bot) sendProtectedCopyMessage(toChatID int64, fromChatID int64, messageID int, caption string) (tgbotapi.Message, error) {
 	params := tgbotapi.Params{}
 	params.AddNonZero64("chat_id", toChatID)
 	params.AddNonZero64("from_chat_id", fromChatID)
 	params.AddNonZero("message_id", messageID)
 	params["protect_content"] = "true" // 🔒 Mencegah user mem-forward atau menyimpan/download video
+	if caption != "" {
+		params["caption"] = caption
+	}
 
 	resp, err := b.api.MakeRequest("copyMessage", params)
 	if err != nil {
@@ -60,7 +63,9 @@ func (b *Bot) SendEpisode(telegramID int64, episodeID int64) error {
 
 	// 4. Pengguna berhak menonton -> Kirim video dari channel privat dengan protect_content=true
 	// 🔒 protect_content mencegah user mem-forward atau menyimpan/download video
-	sentMsg, err := b.sendProtectedCopyMessage(telegramID, episode.ChannelID, episode.MessageID)
+	// Caption dibersihkan agar hanya menampilkan Judul Film dan Episode (sesuai permintaan user)
+	cleanCaption := fmt.Sprintf("🎬 %s - Episode %d", episode.DramaTitle, episode.EpisodeNumber)
+	sentMsg, err := b.sendProtectedCopyMessage(telegramID, episode.ChannelID, episode.MessageID, cleanCaption)
 	if err != nil {
 		log.Printf("[Video] Gagal CopyMessage (channel_id=%d, msg_id=%d): %v. Mencoba fallback sendVideo dengan file_id.\n",
 			episode.ChannelID, episode.MessageID, err)

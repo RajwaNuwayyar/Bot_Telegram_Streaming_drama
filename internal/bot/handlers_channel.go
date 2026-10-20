@@ -38,8 +38,8 @@ func (b *Bot) HandleChannelPost(post *tgbotapi.Message) {
 	log.Printf("[ChannelListener] Video baru terdeteksi di Channel %d (MsgID: %d, FileID: %s)\n",
 		channelID, messageID, video.FileID)
 
-	// Urai judul drama, nomor episode/part, dan status VIP dari caption
-	dramaTitle, epNum, isVIP := parseCaption(caption)
+	// Urai judul drama, nomor episode/part, status VIP, dan kategori dari caption
+	dramaTitle, epNum, isVIP, categories := parseCaption(caption)
 	_ = epNum // epNum digunakan untuk metadata, bukan penentu VIP otomatis
 
 	// Episode hanya dikunci VIP jika caption SECARA EKSPLISIT mengandung tag #vip atau [vip].
@@ -64,6 +64,7 @@ func (b *Bot) HandleChannelPost(post *tgbotapi.Message) {
 		IsVIP:           isVIP,
 		Caption:         caption,
 		ThumbnailFileID: thumbFileID,
+		Categories:      categories,
 	}
 
 	// Simpan ke database (sesuai tugas: kirim data ke Database Engineer / tabel episodes)
@@ -72,8 +73,8 @@ func (b *Bot) HandleChannelPost(post *tgbotapi.Message) {
 		return
 	}
 
-	log.Printf("[ChannelListener] Berhasil menyimpan episode: '%s' Part %d (VIP: %v)\n",
-		dramaTitle, epNum, isVIP)
+	log.Printf("[ChannelListener] Berhasil menyimpan episode: '%s' Part %d (VIP: %v, Categories: %v)\n",
+		dramaTitle, epNum, isVIP, categories)
 
 	// Kirim notifikasi konfirmasi ke admin jika terkonfigurasi
 	if b.cfg.AdminUserID != 0 {
@@ -81,15 +82,20 @@ func (b *Bot) HandleChannelPost(post *tgbotapi.Message) {
 		if isVIP {
 			vipStatusStr = "👑 VIP Only"
 		}
+		catInfo := "-"
+		if len(categories) > 0 {
+			catInfo = strings.Join(categories, ", ")
+		}
 		notifText := fmt.Sprintf(`📥 *Penyimpanan Video Berhasil!*
 ━━━━━━━━━━━━━━━━━━━━
 🎬 *Judul Drama:* %s
 🔢 *Episode:* %d
-🏷️ *Akses:* %s
+🏷️ *Kategori:* %s
+🔑 *Akses:* %s
 ⏱️ *Durasi:* %d detik
 🆔 *Message ID:* %d
 💾 Data telah tersimpan di database dan siap diakses pengguna di Mini App.`,
-			dramaTitle, epNum, vipStatusStr, video.Duration, messageID)
+			dramaTitle, epNum, catInfo, vipStatusStr, video.Duration, messageID)
 
 		notifMsg := tgbotapi.NewMessage(b.cfg.AdminUserID, notifText)
 		notifMsg.ParseMode = "Markdown"
@@ -98,7 +104,7 @@ func (b *Bot) HandleChannelPost(post *tgbotapi.Message) {
 }
 
 // HandleEditedChannelPost menangani saat admin mengedit caption postingan di channel privat.
-// Contoh: admin menghapus "#vip" dari caption → episode diubah menjadi gratis di database.
+// Contoh: admin menghapus "#vip" dari caption → episode diubah menjadi gratis di database, atau menambah/mengubah tag kategori.
 func (b *Bot) HandleEditedChannelPost(post *tgbotapi.Message) {
 	if post == nil {
 		return
@@ -119,15 +125,15 @@ func (b *Bot) HandleEditedChannelPost(post *tgbotapi.Message) {
 	messageID := post.MessageID
 
 	// Urai ulang caption yang sudah diedit
-	dramaTitle, epNum, _ := parseCaption(caption)
+	dramaTitle, epNum, _, categories := parseCaption(caption)
 
 	// Episode hanya dikunci VIP jika caption SECARA EKSPLISIT mengandung tag #vip atau [vip].
 	isVIP := strings.Contains(strings.ToLower(caption), "#vip") ||
 		strings.Contains(strings.ToLower(caption), "[vip]") ||
 		strings.Contains(strings.ToLower(caption), "(vip)")
 
-	log.Printf("[ChannelEdit] Deteksi edit caption MsgID %d: '%s' Ep %d → isVIP: %v\n",
-		messageID, dramaTitle, epNum, isVIP)
+	log.Printf("[ChannelEdit] Deteksi edit caption MsgID %d: '%s' Ep %d → isVIP: %v, Cats: %v\n",
+		messageID, dramaTitle, epNum, isVIP, categories)
 
 	// Update detail episode dan judul drama di database berdasarkan message_id
 	if err := b.repo.UpdateEpisodeDetailsByMessageID(messageID, dramaTitle, epNum, isVIP, caption); err != nil {
@@ -140,20 +146,30 @@ func (b *Bot) HandleEditedChannelPost(post *tgbotapi.Message) {
 		log.Printf("[ChannelEdit] Berhasil update episode MsgID %d: '%s' Ep %d (isVIP: %v)\n", messageID, dramaTitle, epNum, isVIP)
 	}
 
+	// Update relasi kategori jika ada
+	if len(categories) > 0 {
+		_ = b.repo.LinkDramaCategoriesByTitle(dramaTitle, categories)
+	}
+
 	// Notifikasi ke admin
 	if b.cfg.AdminUserID != 0 {
 		vipStatusStr := "🟢 Gratis (Diperbarui)"
 		if isVIP {
 			vipStatusStr = "👑 VIP Only (Diperbarui)"
 		}
+		catInfo := "-"
+		if len(categories) > 0 {
+			catInfo = strings.Join(categories, ", ")
+		}
 		notifText := fmt.Sprintf(`✏️ *Update Postingan Episode Terdeteksi!*
 ━━━━━━━━━━━━━━━━━━━━
 🎬 *Judul Drama:* %s
 🔢 *Episode:* %d
-🏷️ *Status Baru:* %s
+🏷️ *Kategori:* %s
+🔑 *Status Baru:* %s
 🆔 *Message ID:* %d
 💾 Database dan Mini App telah diperbarui sesuai caption terbaru.`,
-			dramaTitle, epNum, vipStatusStr, messageID)
+			dramaTitle, epNum, catInfo, vipStatusStr, messageID)
 
 		notifMsg := tgbotapi.NewMessage(b.cfg.AdminUserID, notifText)
 		notifMsg.ParseMode = "Markdown"
@@ -161,26 +177,88 @@ func (b *Bot) HandleEditedChannelPost(post *tgbotapi.Message) {
 	}
 }
 
-// parseCaption mengurai teks caption untuk mendapatkan Judul Drama dan Nomor Episode
-// Contoh pola yang didukung:
-// 1. "The Secret CEO - Episode 01"
-// 2. "[My Husband] Part 3 #vip"
-// 3. "Judul Drama Ep 12"
-// 4. "Dendam Sang Istri - Part 4"
-func parseCaption(caption string) (title string, epNum int, isVIP bool) {
+// parseCaption mengurai teks caption untuk mendapatkan Judul Drama, Nomor Episode, Status VIP, dan Kategori
+// Contoh: "Gacoan - Episode 01 #Romantis" -> Judul: "Gacoan", Ep: 1, VIP: false, Categories: ["Romantis"]
+func parseCaption(caption string) (title string, epNum int, isVIP bool, categories []string) {
 	if caption == "" {
-		return "Drama Tanpa Judul", 1, false
+		return "Drama Tanpa Judul", 1, false, nil
 	}
 
-	// Cek tag VIP
+	// 1. Cek tag VIP
 	lower := strings.ToLower(caption)
 	if strings.Contains(lower, "#vip") || strings.Contains(lower, "[vip]") || strings.Contains(lower, "(vip)") ||
 		strings.Contains(lower, "status: vip") || strings.Contains(lower, "status:vip") {
 		isVIP = true
 	}
 
-	// Bersihkan hashtag dari teks analisa judul
-	cleanText := regexp.MustCompile(`#[a-zA-Z0-9_]+`).ReplaceAllString(caption, "")
+	// 2. Ekstrak Kategori
+	catMap := make(map[string]bool)
+
+	// A. Ekstrak dari baris Kategori: ... atau Genre: ... atau #kategori: ...
+	lines := strings.Split(caption, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		lowLine := strings.ToLower(trimmed)
+		if strings.HasPrefix(lowLine, "kategori:") || strings.HasPrefix(lowLine, "genre:") ||
+			strings.HasPrefix(lowLine, "#kategori:") || strings.HasPrefix(lowLine, "#genre:") {
+			parts := strings.SplitN(trimmed, ":", 2)
+			if len(parts) > 1 {
+				rawCats := strings.Split(parts[1], ",")
+				for _, rc := range rawCats {
+					c := strings.TrimSpace(strings.TrimPrefix(rc, "#"))
+					if c != "" {
+						catMap[c] = true
+					}
+				}
+			}
+		}
+	}
+
+	// B. Ekstrak dari seluruh hashtag (#Romantis, #Gacoan, dll.)
+	reHashtag := regexp.MustCompile(`#[a-zA-Z0-9_\p{L}]+`)
+	tags := reHashtag.FindAllString(caption, -1)
+	reservedTags := map[string]bool{
+		"#vip":       true,
+		"#poster":    true,
+		"#thumbnail": true,
+		"#hd":        true,
+		"#part":      true,
+		"#eps":       true,
+		"#ep":        true,
+		"#episode":   true,
+		"#ongoing":   true,
+		"#completed": true,
+		"#kategori":  true,
+		"#genre":     true,
+		"#trailer":   true,
+	}
+	for _, tag := range tags {
+		lowTag := strings.ToLower(tag)
+		if reservedTags[lowTag] {
+			continue
+		}
+		cleanTag := strings.TrimPrefix(tag, "#")
+		cleanTag = strings.ReplaceAll(cleanTag, "_", " ")
+		cleanTag = strings.TrimSpace(cleanTag)
+		if cleanTag != "" {
+			catMap[cleanTag] = true
+		}
+	}
+
+	for c := range catMap {
+		categories = append(categories, c)
+	}
+
+	// 3. Bersihkan hashtag dan baris Kategori/Genre dari teks analisa judul
+	cleanText := caption
+	for _, line := range lines {
+		lowLine := strings.ToLower(strings.TrimSpace(line))
+		if strings.HasPrefix(lowLine, "kategori:") || strings.HasPrefix(lowLine, "genre:") ||
+			strings.HasPrefix(lowLine, "#kategori:") || strings.HasPrefix(lowLine, "#genre:") {
+			cleanText = strings.Replace(cleanText, line, "", 1)
+		}
+	}
+	cleanText = regexp.MustCompile(`#[a-zA-Z0-9_\p{L}]+`).ReplaceAllString(cleanText, "")
 	cleanText = strings.TrimSpace(cleanText)
 
 	// Pola 1: <Judul> [ -–:| ] (?:Episode|Ep|Part|Eps)\.?\s*([0-9]+)
@@ -190,17 +268,17 @@ func parseCaption(caption string) (title string, epNum int, isVIP bool) {
 		parsedTitle := strings.Trim(matches[1], " [](){}-–:")
 		num, _ := strconv.Atoi(matches[2])
 		if parsedTitle != "" && num > 0 {
-			return parsedTitle, num, isVIP
+			return parsedTitle, num, isVIP, categories
 		}
 	}
 
 	// Pola 2: Format baris:
 	// Judul: ...
 	// Episode: ...
-	lines := strings.Split(cleanText, "\n")
+	cleanLines := strings.Split(cleanText, "\n")
 	var foundTitle string
 	var foundEp int
-	for _, line := range lines {
+	for _, line := range cleanLines {
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(strings.ToLower(trimmed), "judul:") {
 			foundTitle = strings.TrimSpace(trimmed[6:])
@@ -214,7 +292,7 @@ func parseCaption(caption string) (title string, epNum int, isVIP bool) {
 	}
 
 	if foundTitle != "" && foundEp > 0 {
-		return foundTitle, foundEp, isVIP
+		return foundTitle, foundEp, isVIP, categories
 	}
 
 	// Pola 3: Mencari angka terakhir dalam caption sebagai nomor episode
@@ -224,13 +302,13 @@ func parseCaption(caption string) (title string, epNum int, isVIP bool) {
 		lastNum, _ := strconv.Atoi(numMatches[len(numMatches)-1])
 		if lastNum > 0 {
 			rawTitle := strings.Split(cleanText, "\n")[0]
-			return rawTitle, lastNum, isVIP
+			return rawTitle, lastNum, isVIP, categories
 		}
 	}
 
 	// Default fallback
 	firstLine := strings.Split(cleanText, "\n")[0]
-	return firstLine, 1, isVIP
+	return firstLine, 1, isVIP, categories
 }
 
 // isPosterUpload memeriksa apakah pesan merupakan postingan poster foto/gambar dengan tag #poster
@@ -564,6 +642,201 @@ func (b *Bot) handleChannelAdminCommand(post *tgbotapi.Message) bool {
 		_, _ = b.api.Request(deleteMsg)
 
 		// Kirim hasil ke admin via DM
+		if b.cfg.AdminUserID != 0 {
+			notif := tgbotapi.NewMessage(b.cfg.AdminUserID, replyText)
+			notif.ParseMode = "Markdown"
+			_, _ = b.api.Send(notif)
+		}
+		return true
+	}
+
+	// Perintah: #edit_kategori <Nama Lama/ID> | <Nama Baru>
+	if strings.HasPrefix(strings.ToLower(text), "#edit_kategori") ||
+		strings.HasPrefix(strings.ToLower(text), "#update_kategori") ||
+		strings.HasPrefix(strings.ToLower(text), "#ubah_kategori") {
+
+		var prefixLen int
+		lowerText := strings.ToLower(text)
+		if strings.HasPrefix(lowerText, "#edit_kategori") {
+			prefixLen = len("#edit_kategori")
+		} else if strings.HasPrefix(lowerText, "#update_kategori") {
+			prefixLen = len("#update_kategori")
+		} else {
+			prefixLen = len("#ubah_kategori")
+		}
+
+		args := strings.TrimSpace(text[prefixLen:])
+		var replyText string
+
+		if args == "" || !strings.Contains(args, "|") {
+			replyText = "⚠️ *Format salah.*\n\nGunakan: `#edit_kategori <Nama Lama/ID> | <Nama Baru>`\n\n💡 *Contoh:*\n`#edit_kategori Misteri | Gacoan`\n`#edit_kategori 5 | Drama Keluarga`"
+		} else {
+			parts := strings.SplitN(args, "|", 2)
+			oldIdent := strings.TrimSpace(parts[0])
+			newName := strings.TrimSpace(parts[1])
+
+			if oldIdent == "" || newName == "" {
+				replyText = "❌ Nama lama/ID dan nama baru kategori harus diisi.\n\nContoh: `#edit_kategori Misteri | Gacoan`"
+			} else if err := b.repo.UpdateCategory(oldIdent, newName); err != nil {
+				log.Printf("[ChannelAdmin] Gagal edit kategori '%s' -> '%s': %v\n", oldIdent, newName, err)
+				replyText = fmt.Sprintf("❌ Gagal memperbarui kategori:\n`%v`", err)
+			} else {
+				log.Printf("[ChannelAdmin] Kategori '%s' berhasil diubah menjadi '%s' via channel command\n", oldIdent, newName)
+				replyText = fmt.Sprintf("✅ *Kategori berhasil diperbarui!*\n\n🏷️ *Target:* %s\n✨ *Nama Baru:* %s\n🔗 *Slug Baru:* `%s`\n💾 Perubahan langsung tersimpan di database dan Mini App.", oldIdent, newName, database.GenerateCategorySlug(newName))
+			}
+		}
+
+		deleteMsg := tgbotapi.NewDeleteMessage(post.Chat.ID, post.MessageID)
+		_, _ = b.api.Request(deleteMsg)
+
+		if b.cfg.AdminUserID != 0 {
+			notif := tgbotapi.NewMessage(b.cfg.AdminUserID, replyText)
+			notif.ParseMode = "Markdown"
+			_, _ = b.api.Send(notif)
+		}
+		return true
+	}
+
+	// Perintah: #hapus_kategori <Nama/ID>
+	if strings.HasPrefix(strings.ToLower(text), "#hapus_kategori") ||
+		strings.HasPrefix(strings.ToLower(text), "#delete_kategori") {
+
+		var prefixLen int
+		if strings.HasPrefix(strings.ToLower(text), "#hapus_kategori") {
+			prefixLen = len("#hapus_kategori")
+		} else {
+			prefixLen = len("#delete_kategori")
+		}
+
+		args := strings.TrimSpace(text[prefixLen:])
+		var replyText string
+
+		if args == "" {
+			replyText = "⚠️ *Format salah.*\n\nGunakan: `#hapus_kategori <Nama atau ID>`\n\n💡 *Contoh:*\n`#hapus_kategori Gacoan`\n`#hapus_kategori 14`"
+		} else {
+			if err := b.repo.DeleteCategory(args); err != nil {
+				log.Printf("[ChannelAdmin] Gagal hapus kategori '%s': %v\n", args, err)
+				replyText = fmt.Sprintf("❌ Gagal menghapus kategori:\n`%v`", err)
+			} else {
+				log.Printf("[ChannelAdmin] Kategori '%s' berhasil dihapus via channel command\n", args)
+				replyText = fmt.Sprintf("🗑️ *Kategori berhasil dihapus!*\n\n🏷️ *Kategori:* %s\n💾 Data kategori dan relasi dengan film telah dibersihkan.", args)
+			}
+		}
+
+		deleteMsg := tgbotapi.NewDeleteMessage(post.Chat.ID, post.MessageID)
+		_, _ = b.api.Request(deleteMsg)
+
+		if b.cfg.AdminUserID != 0 {
+			notif := tgbotapi.NewMessage(b.cfg.AdminUserID, replyText)
+			notif.ParseMode = "Markdown"
+			_, _ = b.api.Send(notif)
+		}
+		return true
+	}
+
+	// Perintah: #tambah_kategori <Nama>
+	if strings.HasPrefix(strings.ToLower(text), "#tambah_kategori") ||
+		strings.HasPrefix(strings.ToLower(text), "#add_kategori") {
+
+		var prefixLen int
+		if strings.HasPrefix(strings.ToLower(text), "#tambah_kategori") {
+			prefixLen = len("#tambah_kategori")
+		} else {
+			prefixLen = len("#add_kategori")
+		}
+
+		args := strings.TrimSpace(text[prefixLen:])
+		var replyText string
+
+		if args == "" {
+			replyText = "⚠️ *Format salah.*\n\nGunakan: `#tambah_kategori <Nama Kategori>`\n\n💡 *Contoh:*\n`#tambah_kategori Romantis`\n`#tambah_kategori Thriller Psikologis`"
+		} else {
+			cat, err := b.repo.AddCategory(args)
+			if err != nil {
+				log.Printf("[ChannelAdmin] Gagal tambah kategori '%s': %v\n", args, err)
+				replyText = fmt.Sprintf("❌ Gagal menambah kategori:\n`%v`", err)
+			} else {
+				log.Printf("[ChannelAdmin] Kategori '%s' (ID %d) berhasil ditambahkan\n", cat.Name, cat.ID)
+				replyText = fmt.Sprintf("✅ *Kategori baru berhasil ditambahkan!*\n\n🏷️ *Nama:* %s\n🔗 *Slug:* `%s`\n🆔 *ID:* %d\n💾 Siap digunakan pada caption video (misal: `#%s`).", cat.Name, cat.Slug, cat.ID, strings.ReplaceAll(cat.Name, " ", "_"))
+			}
+		}
+
+		deleteMsg := tgbotapi.NewDeleteMessage(post.Chat.ID, post.MessageID)
+		_, _ = b.api.Request(deleteMsg)
+
+		if b.cfg.AdminUserID != 0 {
+			notif := tgbotapi.NewMessage(b.cfg.AdminUserID, replyText)
+			notif.ParseMode = "Markdown"
+			_, _ = b.api.Send(notif)
+		}
+		return true
+	}
+
+	// Perintah: #list_kategori atau #daftar_kategori
+	if strings.HasPrefix(strings.ToLower(text), "#list_kategori") ||
+		strings.HasPrefix(strings.ToLower(text), "#daftar_kategori") {
+
+		var replyText string
+		cats, err := b.repo.GetCategories()
+		if err != nil {
+			log.Printf("[ChannelAdmin] Gagal mengambil daftar kategori: %v\n", err)
+			replyText = fmt.Sprintf("❌ Gagal mengambil daftar kategori: %v", err)
+		} else if len(cats) == 0 {
+			replyText = "📋 Belum ada kategori di database.\n\nGunakan `#tambah_kategori <Nama>` untuk membuat baru."
+		} else {
+			var sb strings.Builder
+			sb.WriteString(fmt.Sprintf("📋 *Daftar Kategori Drama (%d Kategori)*\n━━━━━━━━━━━━━━━━━━━━\n", len(cats)))
+			for i, c := range cats {
+				sb.WriteString(fmt.Sprintf("%d. *%s* (ID: `%d`, Film: %d)\n", i+1, c.Name, c.ID, c.DramaCount))
+			}
+			sb.WriteString("\n💡 *Tips Kelola Kategori:*\n• Ubah: `#edit_kategori <Lama/ID> | <Baru>`\n• Hapus: `#hapus_kategori <Nama/ID>`")
+			replyText = sb.String()
+		}
+
+		deleteMsg := tgbotapi.NewDeleteMessage(post.Chat.ID, post.MessageID)
+		_, _ = b.api.Request(deleteMsg)
+
+		if b.cfg.AdminUserID != 0 {
+			notif := tgbotapi.NewMessage(b.cfg.AdminUserID, replyText)
+			notif.ParseMode = "Markdown"
+			_, _ = b.api.Send(notif)
+		}
+		return true
+	}
+
+	// Perintah: #set_kategori <Judul Drama> | <Kategori 1>, <Kategori 2>
+	if strings.HasPrefix(strings.ToLower(text), "#set_kategori") {
+		args := strings.TrimSpace(text[len("#set_kategori"):])
+		var replyText string
+
+		if args == "" || !strings.Contains(args, "|") {
+			replyText = "⚠️ *Format salah.*\n\nGunakan: `#set_kategori <Judul Drama> | <Kategori 1>, <Kategori 2>`\n\n💡 *Contoh:*\n`#set_kategori Gacoan | Romantis, Komedi`"
+		} else {
+			parts := strings.SplitN(args, "|", 2)
+			dramaTitle := strings.TrimSpace(parts[0])
+			rawCats := strings.Split(parts[1], ",")
+			var cleanCats []string
+			for _, rc := range rawCats {
+				c := strings.TrimSpace(strings.TrimPrefix(rc, "#"))
+				if c != "" {
+					cleanCats = append(cleanCats, c)
+				}
+			}
+
+			if dramaTitle == "" || len(cleanCats) == 0 {
+				replyText = "❌ Judul drama dan minimal 1 kategori harus diisi."
+			} else if err := b.repo.LinkDramaCategoriesByTitle(dramaTitle, cleanCats); err != nil {
+				log.Printf("[ChannelAdmin] Gagal set kategori drama '%s': %v\n", dramaTitle, err)
+				replyText = fmt.Sprintf("❌ Gagal menghubungkan kategori:\n`%v`", err)
+			} else {
+				log.Printf("[ChannelAdmin] Berhasil menghubungkan kategori %v ke drama '%s'\n", cleanCats, dramaTitle)
+				replyText = fmt.Sprintf("✅ *Kategori drama berhasil diperbarui!*\n\n🎬 *Judul Drama:* %s\n🏷️ *Kategori:* %s\n💾 Data langsung sinkron di Mini App.", dramaTitle, strings.Join(cleanCats, ", "))
+			}
+		}
+
+		deleteMsg := tgbotapi.NewDeleteMessage(post.Chat.ID, post.MessageID)
+		_, _ = b.api.Request(deleteMsg)
+
 		if b.cfg.AdminUserID != 0 {
 			notif := tgbotapi.NewMessage(b.cfg.AdminUserID, replyText)
 			notif.ParseMode = "Markdown"

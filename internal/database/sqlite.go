@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"time"
 
@@ -90,6 +91,16 @@ func (r *SQLiteRepo) migrate() error {
 			created_at DATETIME,
 			paid_at DATETIME,
 			expired_at DATETIME
+		);`,
+		`CREATE TABLE IF NOT EXISTS categories (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT UNIQUE NOT NULL,
+			slug TEXT UNIQUE NOT NULL
+		);`,
+		`CREATE TABLE IF NOT EXISTS drama_categories (
+			drama_id INTEGER NOT NULL,
+			category_id INTEGER NOT NULL,
+			PRIMARY KEY (drama_id, category_id)
 		);`,
 	}
 
@@ -265,6 +276,12 @@ func (r *SQLiteRepo) SaveEpisode(ep *Episode) error {
 	// Buat atau perbarui record di tabel dramas
 	slug := strings.ToLower(strings.ReplaceAll(ep.DramaTitle, " ", "-"))
 	_, _ = r.db.Exec(`INSERT OR IGNORE INTO dramas (title, slug, poster_url, total_episodes, free_episodes_count, created_at) VALUES (?, ?, ?, 0, 1, ?)`, ep.DramaTitle, slug, ep.ThumbnailFileID, now)
+	var dramaID int64
+	_ = r.db.QueryRow(`SELECT id FROM dramas WHERE title = ? LIMIT 1`, ep.DramaTitle).Scan(&dramaID)
+	ep.DramaID = dramaID
+	if len(ep.Categories) > 0 && dramaID > 0 {
+		_ = r.LinkDramaCategories(dramaID, ep.Categories)
+	}
 	return nil
 }
 
@@ -615,3 +632,149 @@ func (r *SQLiteRepo) CompleteAffiliateWithdrawal(wdID int64) (int64, error) {
 
 	return telegramID, nil
 }
+
+// AddCategory menambahkan kategori baru atau mengembalikan kategori jika sudah ada
+func (r *SQLiteRepo) AddCategory(name string) (*Category, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, fmt.Errorf("nama kategori tidak boleh kosong")
+	}
+	slug := GenerateCategorySlug(name)
+
+	var existing Category
+	err := r.db.QueryRow(`SELECT id, name, slug FROM categories WHERE LOWER(name) = LOWER(?) OR slug = ? LIMIT 1`, name, slug).
+		Scan(&existing.ID, &existing.Name, &existing.Slug)
+	if err == nil {
+		return &existing, nil
+	}
+
+	res, err := r.db.Exec(`INSERT INTO categories (name, slug) VALUES (?, ?)`, name, slug)
+	if err != nil {
+		errScan := r.db.QueryRow(`SELECT id, name, slug FROM categories WHERE LOWER(name) = LOWER(?) OR slug = ? LIMIT 1`, name, slug).
+			Scan(&existing.ID, &existing.Name, &existing.Slug)
+		if errScan == nil {
+			return &existing, nil
+		}
+		return nil, err
+	}
+	id, _ := res.LastInsertId()
+	return &Category{ID: id, Name: name, Slug: slug}, nil
+}
+
+// GetCategories mengambil seluruh kategori beserta jumlah drama yang terhubung
+func (r *SQLiteRepo) GetCategories() ([]Category, error) {
+	query := `
+		SELECT c.id, c.name, c.slug, COUNT(dc.drama_id) as drama_count
+		FROM categories c
+		LEFT JOIN drama_categories dc ON dc.category_id = c.id
+		GROUP BY c.id, c.name, c.slug
+		ORDER BY c.name ASC
+	`
+	rows, err := r.db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var cats []Category
+	for rows.Next() {
+		var cat Category
+		if err := rows.Scan(&cat.ID, &cat.Name, &cat.Slug, &cat.DramaCount); err != nil {
+			return nil, err
+		}
+		cats = append(cats, cat)
+	}
+	return cats, nil
+}
+
+// UpdateCategory memperbarui nama kategori dan slug berdasarkan ID numerik atau nama/slug lama
+func (r *SQLiteRepo) UpdateCategory(oldIdent string, newName string) error {
+	oldIdent = strings.TrimSpace(oldIdent)
+	newName = strings.TrimSpace(newName)
+	if oldIdent == "" || newName == "" {
+		return fmt.Errorf("nama lama dan nama baru harus diisi")
+	}
+	newSlug := GenerateCategorySlug(newName)
+
+	if id, err := strconv.ParseInt(oldIdent, 10, 64); err == nil && id > 0 {
+		res, err := r.db.Exec(`UPDATE categories SET name = ?, slug = ? WHERE id = ?`, newName, newSlug, id)
+		if err != nil {
+			return err
+		}
+		affected, _ := res.RowsAffected()
+		if affected == 0 {
+			return fmt.Errorf("kategori dengan ID %d tidak ditemukan", id)
+		}
+		return nil
+	}
+
+	res, err := r.db.Exec(`UPDATE categories SET name = ?, slug = ? WHERE LOWER(name) = LOWER(?) OR LOWER(slug) = LOWER(?)`, newName, newSlug, oldIdent, oldIdent)
+	if err != nil {
+		return err
+	}
+	affected, _ := res.RowsAffected()
+	if affected == 0 {
+		return fmt.Errorf("kategori '%s' tidak ditemukan", oldIdent)
+	}
+	return nil
+}
+
+// DeleteCategory menghapus kategori berdasarkan ID numerik atau nama/slug
+func (r *SQLiteRepo) DeleteCategory(ident string) error {
+	ident = strings.TrimSpace(ident)
+	if ident == "" {
+		return fmt.Errorf("identitas kategori tidak boleh kosong")
+	}
+
+	if id, err := strconv.ParseInt(ident, 10, 64); err == nil && id > 0 {
+		res, err := r.db.Exec(`DELETE FROM categories WHERE id = ?`, id)
+		if err != nil {
+			return err
+		}
+		affected, _ := res.RowsAffected()
+		if affected == 0 {
+			return fmt.Errorf("kategori dengan ID %d tidak ditemukan", id)
+		}
+		return nil
+	}
+
+	res, err := r.db.Exec(`DELETE FROM categories WHERE LOWER(name) = LOWER(?) OR LOWER(slug) = LOWER(?)`, ident, ident)
+	if err != nil {
+		return err
+	}
+	affected, _ := res.RowsAffected()
+	if affected == 0 {
+		return fmt.Errorf("kategori '%s' tidak ditemukan", ident)
+	}
+	return nil
+}
+
+// LinkDramaCategories menghubungkan daftar nama kategori ke drama ID
+func (r *SQLiteRepo) LinkDramaCategories(dramaID int64, categoryNames []string) error {
+	if dramaID <= 0 || len(categoryNames) == 0 {
+		return nil
+	}
+	for _, raw := range categoryNames {
+		name := strings.TrimSpace(raw)
+		if name == "" {
+			continue
+		}
+		cat, err := r.AddCategory(name)
+		if err != nil || cat == nil {
+			continue
+		}
+		_, _ = r.db.Exec(`INSERT OR IGNORE INTO drama_categories (drama_id, category_id) VALUES (?, ?)`, dramaID, cat.ID)
+	}
+	return nil
+}
+
+// LinkDramaCategoriesByTitle menghubungkan daftar nama kategori ke drama berdasarkan judul
+func (r *SQLiteRepo) LinkDramaCategoriesByTitle(dramaTitle string, categoryNames []string) error {
+	var dramaID int64
+	err := r.db.QueryRow(`SELECT id FROM dramas WHERE LOWER(title) = LOWER(?) LIMIT 1`, strings.TrimSpace(dramaTitle)).Scan(&dramaID)
+	if err != nil {
+		return fmt.Errorf("drama '%s' tidak ditemukan", dramaTitle)
+	}
+	return r.LinkDramaCategories(dramaID, categoryNames)
+}
+

@@ -27,6 +27,14 @@ type Repository interface {
 	UpdateDramaPoster(dramaTitle string, posterFileID string) error // Update thumbnail/poster drama dari upload channel tag #poster
 	DeleteDramaPoster(dramaTitle string) error                      // Hapus/reset poster drama kembali ke default
 
+	// Categories
+	AddCategory(name string) (*Category, error)
+	GetCategories() ([]Category, error)
+	UpdateCategory(oldIdent string, newName string) error
+	DeleteCategory(ident string) error
+	LinkDramaCategories(dramaID int64, categoryNames []string) error
+	LinkDramaCategoriesByTitle(dramaTitle string, categoryNames []string) error
+
 	// Transactions
 	CreateTransaction(tx *Transaction) error
 	GetTransactionByCode(trxCode string) (*Transaction, error)
