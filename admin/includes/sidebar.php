@@ -50,6 +50,7 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'overview';
             <div>
                 <p class="px-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Monetisasi & Konten</p>
                 <div class="space-y-1">
+                    <?php if (isSuperAdmin()): ?>
                     <a href="index.php?page=vip" class="nav-link flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm transition-all <?= ($page === 'vip') ? 'active text-[#00D0B6]' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/50'; ?>">
                         <div class="flex items-center gap-3">
                             <i class="fas fa-crown w-5 text-center text-sm text-amber-400"></i>
@@ -57,6 +58,7 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'overview';
                         </div>
                         <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">QRIS</span>
                     </a>
+                    <?php endif; ?>
 
                     <a href="index.php?page=dramas" class="nav-link flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm transition-all <?= ($page === 'dramas') ? 'active text-[#00D0B6]' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/50'; ?>">
                         <div class="flex items-center gap-3">
@@ -71,12 +73,14 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'overview';
             <div>
                 <p class="px-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Komunitas & Bot</p>
                 <div class="space-y-1">
+                    <?php if (isSuperAdmin()): ?>
                     <a href="index.php?page=affiliate" class="nav-link flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm transition-all <?= ($page === 'affiliate') ? 'active text-[#00D0B6]' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/50'; ?>">
                         <div class="flex items-center gap-3">
                             <i class="fas fa-share-nodes w-5 text-center text-sm"></i>
                             <span>Affiliate & Penarikan</span>
                         </div>
                     </a>
+                    <?php endif; ?>
 
                     <a href="index.php?page=requests" class="nav-link flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm transition-all <?= ($page === 'requests') ? 'active text-[#00D0B6]' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/50'; ?>">
                         <div class="flex items-center gap-3">
@@ -88,18 +92,34 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'overview';
                 </div>
             </div>
 
-            <!-- Group 4: Konfigurasi -->
+            <?php if (isSuperAdmin()): ?>
+            <!-- Group 4: Konfigurasi Khusus Super Admin -->
             <div>
                 <p class="px-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Sistem</p>
                 <div class="space-y-1">
                     <a href="index.php?page=settings" class="nav-link flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm transition-all <?= ($page === 'settings') ? 'active text-[#00D0B6]' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/50'; ?>">
                         <div class="flex items-center gap-3">
                             <i class="fas fa-sliders-h w-5 text-center text-sm"></i>
-                            <span>Pengaturan Database</span>
+                            <span>Pengaturan Sistem & Admin</span>
                         </div>
                     </a>
                 </div>
             </div>
+            <?php else: ?>
+            <!-- Group 4: Profil untuk Staff Admin -->
+            <div>
+                <p class="px-3 text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Akun Saya</p>
+                <div class="space-y-1">
+                    <a href="index.php?page=settings" class="nav-link flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm transition-all <?= ($page === 'settings') ? 'active text-[#00D0B6]' : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800/50'; ?>">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-user-gear w-5 text-center text-sm"></i>
+                            <span>Profil & Password</span>
+                        </div>
+                        <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20">Staff</span>
+                    </a>
+                </div>
+            </div>
+            <?php endif; ?>
         </nav>
     </div>
 
@@ -107,8 +127,16 @@ $page = isset($_GET['page']) ? $_GET['page'] : 'overview';
     <div class="p-4 border-t border-white/5">
         <div class="p-3.5 rounded-2xl bg-gradient-to-b from-slate-900 to-slate-950 border border-white/5 flex flex-col gap-2">
             <div class="flex items-center justify-between">
-                <span class="text-xs font-semibold text-slate-300">Status Server</span>
-                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                <span class="text-xs font-semibold text-slate-300">Hak Akses</span>
+                <?php if (isSuperAdmin()): ?>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20 flex items-center gap-1">
+                        <i class="fas fa-crown text-[9px]"></i> Super Admin
+                    </span>
+                <?php else: ?>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-300 border border-sky-500/20 flex items-center gap-1">
+                        <i class="fas fa-user-shield text-[9px]"></i> Staff Admin
+                    </span>
+                <?php endif; ?>
             </div>
             <p class="text-[11px] text-slate-400">Drama Bot v5.0 Active</p>
             <a href="../Homepage/index.php" target="_blank" class="mt-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-[#00D0B6]/10 text-[#00D0B6] hover:bg-[#00D0B6]/20 transition text-xs font-semibold">

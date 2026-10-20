@@ -1,5 +1,10 @@
 <?php
 // Halaman Pemantauan Pendapatan & Transaksi VIP Riil Database
+if (!isSuperAdmin()) {
+    header("Location: index.php?page=overview");
+    exit;
+}
+
 $filter = isset($_GET['filter']) ? trim($_GET['filter']) : 'all';
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
 

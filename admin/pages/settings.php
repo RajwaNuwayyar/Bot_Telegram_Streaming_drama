@@ -13,7 +13,10 @@ $actionResult = null;
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['admin_action'])) {
     $action = trim($_POST['admin_action']);
 
-    if ($action === 'register_admin') {
+    // Proteksi: Daftarkan admin, toggle status, dan hapus akun dibatasi khusus Super Admin (Pemilik)
+    if (in_array($action, ['register_admin', 'toggle_status', 'delete_admin']) && !isSuperAdmin()) {
+        $actionResult = ['success' => false, 'message' => 'Aksi ini dibatasi khusus untuk Super Admin (Pemilik).'];
+    } elseif ($action === 'register_admin') {
         $username = trim($_POST['username'] ?? '');
         $password = trim($_POST['password'] ?? '');
         $confirmPassword = trim($_POST['confirm_password'] ?? '');
@@ -93,6 +96,24 @@ $allAdmins = getAllAdminsList();
     </div>
     <?php endif; ?>
 
+    <!-- Banner Penjelasan Role jika Staff Admin -->
+    <?php if (!isSuperAdmin()): ?>
+    <div class="p-4 rounded-2xl bg-gradient-to-r from-sky-500/10 via-slate-900 to-slate-900 border border-sky-500/20 text-sky-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center text-lg">
+                <i class="fas fa-user-shield"></i>
+            </div>
+            <div>
+                <p class="text-sm font-bold text-white">Akun Anda: Staff Admin (Operator Konten)</p>
+                <p class="text-xs text-slate-400">Anda dapat mengubah data diri dan password Anda di bawah ini. Pengaturan database, keuangan (VIP & QRIS), dan pendaftaran administrator dibatasi khusus untuk Super Admin (Pemilik).</p>
+            </div>
+        </div>
+        <span class="shrink-0 px-3 py-1 rounded-full text-xs font-bold bg-sky-500/15 text-sky-300 border border-sky-500/30 uppercase tracking-wide">
+            Staff Admin
+        </span>
+    </div>
+    <?php endif; ?>
+
     <!-- Section 1: Profil Saya & Ubah Kredensial -->
     <div class="glass-panel p-6 rounded-2xl border border-white/5 relative overflow-hidden" id="profile-section">
         <div class="flex items-center gap-4 mb-6 pb-4 border-b border-white/5">
@@ -154,6 +175,7 @@ $allAdmins = getAllAdminsList();
         </form>
     </div>
 
+    <?php if (isSuperAdmin()): ?>
     <!-- Section 2: Manajemen Akun Administrator (Multi-Admin) -->
     <div class="glass-panel rounded-2xl overflow-hidden border border-white/5">
         <div class="p-6 border-b border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -374,9 +396,11 @@ $allAdmins = getAllAdminsList();
             <?php endforeach; ?>
         </div>
     </div>
+    <?php endif; ?>
 
 </div>
 
+<?php if (isSuperAdmin()): ?>
 <!-- Modal Pendaftaran Admin Baru -->
 <div id="registerAdminModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4">
     <div class="bg-[#111827] border border-white/10 rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
@@ -433,3 +457,4 @@ $allAdmins = getAllAdminsList();
         </form>
     </div>
 </div>
+<?php endif; ?>

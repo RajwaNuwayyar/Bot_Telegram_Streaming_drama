@@ -6,14 +6,20 @@ $actionResult = null;
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['user_action'])) {
     $action = trim($_POST['user_action']);
     $userId = isset($_POST['user_id']) ? (int)$_POST['user_id'] : 0;
-    $extra = [
-        'days'             => isset($_POST['vip_days']) ? (int)$_POST['vip_days'] : 30,
-        'telegram_user_id' => isset($_POST['telegram_user_id']) ? (int)$_POST['telegram_user_id'] : 0,
-        'first_name'       => trim($_POST['first_name'] ?? ''),
-        'username'         => trim($_POST['username'] ?? ''),
-        'subscription'     => trim($_POST['subscription'] ?? 'regular'),
-    ];
-    $actionResult = manageUserAction($action, $userId, $extra);
+
+    // Proteksi: Tambah VIP, Banned, dan Input Manual dibatasi khusus Super Admin (Pemilik)
+    if (in_array($action, ['add_vip', 'toggle_ban', 'add_user']) && !isSuperAdmin()) {
+        $actionResult = ['success' => false, 'message' => 'Aksi ini dibatasi khusus untuk Super Admin (Pemilik).'];
+    } else {
+        $extra = [
+            'days'             => isset($_POST['vip_days']) ? (int)$_POST['vip_days'] : 30,
+            'telegram_user_id' => isset($_POST['telegram_user_id']) ? (int)$_POST['telegram_user_id'] : 0,
+            'first_name'       => trim($_POST['first_name'] ?? ''),
+            'username'         => trim($_POST['username'] ?? ''),
+            'subscription'     => trim($_POST['subscription'] ?? 'regular'),
+        ];
+        $actionResult = manageUserAction($action, $userId, $extra);
+    }
 }
 
 $filter = isset($_GET['filter']) ? trim($_GET['filter']) : 'all';
@@ -101,10 +107,12 @@ $counts = getUserTabCounts();
                         <i class="fas fa-print"></i>
                         <span>Cetak Laporan</span>
                     </button>
+                    <?php if (isSuperAdmin()): ?>
                     <button onclick="openModal('addUserModal')" class="px-4 py-2.5 rounded-xl bg-[#00D0B6] hover:bg-[#00D0B6]/90 text-slate-950 text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-[#00D0B6]/20">
                         <i class="fas fa-user-plus"></i>
                         <span>Input User Manual</span>
                     </button>
+                    <?php endif; ?>
                 </div>
             </div>
 
@@ -254,18 +262,21 @@ $counts = getUserTabCounts();
                             <!-- Aksi Menu Riil (Database Mutation) -->
                             <td class="text-right">
                                 <div class="flex items-center justify-end gap-1.5">
-                                    <!-- 1. Lihat Detail -->
+                                    <!-- 1. Lihat Detail (Semua Role) -->
                                     <button onclick="openUserDetailModal(<?= $userJson; ?>)" class="p-2 rounded-lg bg-slate-800 hover:bg-[#00D0B6]/20 hover:text-[#00D0B6] text-slate-400 transition" title="Lihat Profil Lengkap">
                                         <i class="fas fa-eye text-xs"></i>
                                     </button>
-                                    <!-- 2. Tambah VIP Manual -->
+
+                                    <?php if (isSuperAdmin()): ?>
+                                    <!-- 2. Tambah VIP Manual (Super Admin Only) -->
                                     <button onclick="openAddVipModal(<?= $u['id']; ?>, '<?= htmlspecialchars(addslashes($fullName)); ?>')" class="p-2 rounded-lg bg-slate-800 hover:bg-amber-500/20 hover:text-amber-400 text-slate-400 transition" title="Tambah / Perpanjang Masa VIP">
                                         <i class="fas fa-crown text-xs"></i>
                                     </button>
-                                    <!-- 3. Toggle Ban / Unban -->
+                                    <!-- 3. Toggle Ban / Unban (Super Admin Only) -->
                                     <button onclick="openToggleBanModal(<?= $u['id']; ?>, '<?= htmlspecialchars(addslashes($fullName)); ?>', <?= $u['is_banned']; ?>)" class="p-2 rounded-lg bg-slate-800 <?= $u['is_banned'] ? 'hover:bg-emerald-500/20 hover:text-emerald-400 text-rose-400' : 'hover:bg-rose-500/20 hover:text-rose-400 text-slate-400'; ?> transition" title="<?= $u['is_banned'] ? 'Buka Banned (Unban)' : 'Banned Pengguna'; ?>">
                                         <i class="fas <?= $u['is_banned'] ? 'fa-unlock' : 'fa-ban'; ?> text-xs"></i>
                                     </button>
+                                    <?php endif; ?>
                                 </div>
                             </td>
                         </tr>

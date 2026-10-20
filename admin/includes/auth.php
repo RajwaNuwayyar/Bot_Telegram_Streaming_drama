@@ -35,6 +35,26 @@ function isSuperAdmin() {
 }
 
 /**
+ * Cek apakah halaman tertentu hanya boleh diakses oleh Super Admin
+ */
+function isSuperAdminOnlyPage($page) {
+    return in_array($page, ['vip', 'affiliate']);
+}
+
+/**
+ * Cek apakah admin saat ini berhak mengakses halaman tertentu
+ */
+function canAccessPage($page) {
+    if (!isAdminLoggedIn()) return false;
+    if (isSuperAdmin()) return true;
+
+    // Daftar halaman yang boleh diakses oleh Staff Admin (Operator)
+    // Settings diizinkan agar Staff Admin bisa mengupdate profil & password dirinya sendiri
+    $staffAllowedPages = ['overview', 'users', 'dramas', 'requests', 'settings'];
+    return in_array($page, $staffAllowedPages);
+}
+
+/**
  * Ambil data info admin yang sedang login
  */
 function getAdminInfo() {

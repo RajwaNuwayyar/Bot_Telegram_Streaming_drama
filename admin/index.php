@@ -23,7 +23,14 @@ if (!in_array($page, $allowed_pages)) {
     $page = 'overview';
 }
 
-// Render Layout
+// Render Layout & Cek Izin Hak Akses Role
 include __DIR__ . '/includes/header.php';
-include __DIR__ . "/pages/{$page}.php";
+
+if (!canAccessPage($page)) {
+    include __DIR__ . '/pages/403.php';
+} else {
+    include __DIR__ . "/pages/{$page}.php";
+}
+
 include __DIR__ . '/includes/footer.php';
+

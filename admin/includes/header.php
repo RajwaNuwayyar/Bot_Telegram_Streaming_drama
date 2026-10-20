@@ -82,7 +82,7 @@ $currentPage = isset($_GET['page']) ? $_GET['page'] : 'overview';
                                 case 'dramas': echo 'Katalog Drama & Episode'; break;
                                 case 'affiliate': echo 'Program Affiliate & Penarikan'; break;
                                 case 'requests': echo 'Request Film Masuk'; break;
-                                case 'settings': echo 'Pengaturan Sistem'; break;
+                                case 'settings': echo isSuperAdmin() ? 'Pengaturan Sistem & Admin' : 'Profil Akun Administrator'; break;
                                 default: echo 'Dashboard Utama'; break;
                             }
                         ?>
@@ -123,12 +123,16 @@ $currentPage = isset($_GET['page']) ? $_GET['page'] : 'overview';
                 <!-- Admin Profile Dropdown Pill -->
                 <div class="flex items-center gap-3 pl-3 sm:pl-4 border-l border-white/10">
                     <a href="index.php?page=settings#profile-section" class="flex items-center gap-2.5 group cursor-pointer" title="Kelola Profil & Password Akun">
-                        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#00D0B6] to-sky-400 text-slate-950 font-bold text-xs flex items-center justify-center ring-2 ring-[#00D0B6]/30 group-hover:scale-105 transition">
+                        <div class="w-9 h-9 rounded-xl <?= isSuperAdmin() ? 'bg-gradient-to-tr from-amber-400 to-[#00D0B6]' : 'bg-gradient-to-tr from-sky-400 to-indigo-500'; ?> text-slate-950 font-bold text-xs flex items-center justify-center ring-2 <?= isSuperAdmin() ? 'ring-amber-400/30' : 'ring-sky-400/30'; ?> group-hover:scale-105 transition">
                             <?= strtoupper(substr($adminInfo['full_name'] ?? $adminInfo['username'], 0, 1)); ?>
                         </div>
                         <div class="hidden xl:block text-left">
                             <p class="text-xs font-bold text-white group-hover:text-[#00D0B6] transition"><?= htmlspecialchars($adminInfo['full_name'] ?? $adminInfo['username']); ?></p>
-                            <p class="text-[10px] text-emerald-400 font-medium">Online • <?= htmlspecialchars($adminInfo['role']); ?></p>
+                            <?php if (isSuperAdmin()): ?>
+                                <p class="text-[10px] text-amber-300 font-semibold flex items-center gap-1"><i class="fas fa-crown text-[8px]"></i> Super Admin</p>
+                            <?php else: ?>
+                                <p class="text-[10px] text-sky-400 font-semibold flex items-center gap-1"><i class="fas fa-user-shield text-[8px]"></i> Staff Admin</p>
+                            <?php endif; ?>
                         </div>
                     </a>
                     <a href="logout.php" class="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition" title="Logout">

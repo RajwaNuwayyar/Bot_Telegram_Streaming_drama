@@ -1,5 +1,10 @@
 <?php
 // Halaman Program Affiliate & Verifikasi Penarikan Saldo Riil
+if (!isSuperAdmin()) {
+    header("Location: index.php?page=overview");
+    exit;
+}
+
 $actionResult = null;
 
 // Tangani aksi persetujuan / penolakan dari admin

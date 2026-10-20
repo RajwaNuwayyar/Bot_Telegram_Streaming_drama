@@ -160,10 +160,15 @@ if (!empty($dramas)) {
                         </span>
                     </div>
 
-                    <!-- Delete button shortcut -->
-                    <button onclick="confirmDeleteDrama(<?= $drama['id']; ?>, '<?= htmlspecialchars(addslashes($drama['title'])); ?>')" class="absolute top-3 right-3 w-7 h-7 rounded-lg bg-black/50 hover:bg-rose-500 text-slate-400 hover:text-white flex items-center justify-center text-xs transition backdrop-blur-md" title="Hapus Drama">
-                        <i class="fas fa-trash-alt"></i>
-                    </button>
+                    <!-- Action shortcuts (Edit & Delete) -->
+                    <div class="absolute top-3 right-3 flex items-center gap-1.5 z-10">
+                        <button onclick="openEditDramaModal(<?= (int)$drama['id']; ?>)" class="w-7 h-7 rounded-lg bg-black/60 hover:bg-amber-500 text-slate-300 hover:text-slate-950 flex items-center justify-center text-xs transition backdrop-blur-md shadow" title="Edit Informasi Drama">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="confirmDeleteDrama(<?= $drama['id']; ?>, '<?= htmlspecialchars(addslashes($drama['title'])); ?>')" class="w-7 h-7 rounded-lg bg-black/60 hover:bg-rose-500 text-slate-400 hover:text-white flex items-center justify-center text-xs transition backdrop-blur-md shadow" title="Hapus Drama">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
 
                     <div class="absolute bottom-3 left-3 right-3 pointer-events-none">
                         <span class="text-[11px] text-slate-300 font-medium"><?= htmlspecialchars($drama['country_origin'] ?? 'Asia'); ?> <?= !empty($drama['release_year']) ? '• ' . $drama['release_year'] : ''; ?></span>
@@ -293,6 +298,91 @@ if (!empty($dramas)) {
     </div>
 </div>
 
+<!-- Modal 1.5: Edit Informasi Drama (POST Form) -->
+<div id="editDramaModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-[#111827] border border-white/10 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+        <button onclick="closeModal('editDramaModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+            <i class="fas fa-times text-lg"></i>
+        </button>
+        <div class="flex items-center gap-3 mb-5">
+            <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center">
+                <i class="fas fa-edit"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-white text-base">Edit Informasi Drama</h3>
+                <p class="text-xs text-slate-400">Perbarui judul, poster, sinopsis, atau kuota episode gratis</p>
+            </div>
+        </div>
+
+        <form method="POST" action="" class="space-y-4 text-xs">
+            <input type="hidden" name="drama_action" value="edit_drama">
+            <input type="hidden" name="drama_id" id="editDramaId" value="">
+            <div>
+                <label class="block text-slate-300 font-semibold mb-1">Judul Drama *</label>
+                <input type="text" name="title" id="editDramaTitle" required placeholder="Contoh: Queen of Tears" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white focus:outline-none focus:border-amber-400">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-slate-300 font-semibold mb-1">Negara Asal</label>
+                    <input type="text" name="country_origin" id="editDramaCountry" placeholder="Korea Selatan" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white focus:outline-none focus:border-amber-400">
+                </div>
+                <div>
+                    <label class="block text-slate-300 font-semibold mb-1">Tahun Rilis</label>
+                    <input type="number" name="release_year" id="editDramaYear" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white focus:outline-none focus:border-amber-400">
+                </div>
+            </div>
+            <div>
+                <label class="block text-slate-300 font-semibold mb-1">Poster URL / Telegram File ID</label>
+                <input type="text" name="poster_url" id="editDramaPoster" placeholder="https://... atau Telegram file_id" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white focus:outline-none focus:border-amber-400">
+                <p class="text-[11px] text-slate-500 mt-1">Dapat berupa URL gambar (HTTPS) atau string Telegram file_id.</p>
+            </div>
+            <div class="grid grid-cols-3 gap-3">
+                <div>
+                    <label class="block text-slate-300 font-semibold mb-1">Target Total Ep</label>
+                    <input type="number" name="total_episodes" id="editDramaTotalEp" min="0" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white focus:outline-none focus:border-amber-400">
+                </div>
+                <div>
+                    <label class="block text-slate-300 font-semibold mb-1">Episode Gratis</label>
+                    <input type="number" name="free_episodes_count" id="editDramaFreeEp" min="0" title="1 = ep 1 gratis, selebihnya VIP" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white focus:outline-none focus:border-amber-400">
+                </div>
+                <div>
+                    <label class="block text-slate-300 font-semibold mb-1">Status</label>
+                    <select name="status" id="editDramaStatus" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white focus:outline-none focus:border-amber-400">
+                        <option value="ongoing">Ongoing</option>
+                        <option value="completed">Completed</option>
+                        <option value="hiatus">Hiatus</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Pilih Genre / Kategori -->
+            <?php if (!empty($categories)): ?>
+            <div>
+                <label class="block text-slate-300 font-semibold mb-1.5">Genre / Kategori Drama</label>
+                <div class="grid grid-cols-3 gap-2 max-h-32 overflow-y-auto p-2 bg-slate-900 rounded-xl border border-white/5">
+                    <?php foreach ($categories as $cat): ?>
+                    <label class="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white">
+                        <input type="checkbox" name="category_ids[]" value="<?= $cat['id']; ?>" class="edit-category-checkbox rounded bg-slate-800 border-white/10 text-amber-400 focus:ring-0">
+                        <span><?= htmlspecialchars($cat['name']); ?></span>
+                    </label>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <div>
+                <label class="block text-slate-300 font-semibold mb-1">Sinopsis / Deskripsi Singkat</label>
+                <textarea name="description" id="editDramaDesc" rows="3" placeholder="Sinopsis cerita drama..." class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white focus:outline-none focus:border-amber-400"></textarea>
+            </div>
+
+            <div class="pt-3 flex items-center justify-end gap-3">
+                <button type="button" onclick="closeModal('editDramaModal')" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white font-semibold">Batal</button>
+                <button type="submit" class="px-5 py-2 rounded-xl bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 shadow-lg shadow-amber-500/20">Simpan Perubahan</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Modal 2: Tambah / Sinkronkan Episode Telegram (POST Form) -->
 <div id="addEpisodeModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4">
     <div class="bg-[#111827] border border-white/10 rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
@@ -347,6 +437,66 @@ if (!empty($dramas)) {
             <div class="pt-3 flex items-center justify-end gap-3">
                 <button type="button" onclick="closeModal('addEpisodeModal')" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white font-semibold">Batal</button>
                 <button type="submit" class="px-5 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-white font-bold shadow-lg shadow-sky-500/20">Simpan Episode</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal 2.5: Edit Detail Episode Telegram (POST Form) -->
+<div id="editEpisodeModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-[#111827] border border-white/10 rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
+        <button onclick="closeModal('editEpisodeModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+            <i class="fas fa-times text-lg"></i>
+        </button>
+        <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center">
+                <i class="fas fa-edit"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-white text-base">Edit Episode Telegram</h3>
+                <p class="text-xs text-slate-400">Koreksi nomor episode, channel ID, atau message ID video</p>
+            </div>
+        </div>
+
+        <div class="p-3 mb-4 bg-slate-900 rounded-xl border border-white/5 text-xs">
+            Drama: <strong id="editEpDramaTitle" class="text-white">-</strong>
+        </div>
+
+        <form method="POST" action="" class="space-y-4 text-xs">
+            <input type="hidden" name="drama_action" value="edit_episode">
+            <input type="hidden" name="episode_id" id="editEpisodeId" value="">
+            <input type="hidden" name="drama_id" id="editEpDramaId" value="">
+            
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-slate-300 font-semibold mb-1">Nomor Episode *</label>
+                    <input type="number" name="episode_number" id="editEpNumber" value="1" min="1" required class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white focus:outline-none focus:border-amber-400">
+                </div>
+                <div>
+                    <label class="block text-slate-300 font-semibold mb-1">Judul Episode</label>
+                    <input type="text" name="title" id="editEpTitle" placeholder="Episode 1" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white focus:outline-none focus:border-amber-400">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-slate-300 font-semibold mb-1">Telegram Channel ID *</label>
+                <input type="text" name="telegram_channel_id" id="editEpChannelId" required placeholder="Contoh: -100192837465" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white font-mono focus:outline-none focus:border-amber-400">
+                <p class="text-[11px] text-slate-500 mt-1">ID Channel privat penyimpanan video (diawali -100...)</p>
+            </div>
+
+            <div>
+                <label class="block text-slate-300 font-semibold mb-1">Telegram Message ID *</label>
+                <input type="number" name="telegram_message_id" id="editEpMessageId" required placeholder="Contoh: 42" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white font-mono focus:outline-none focus:border-amber-400">
+            </div>
+
+            <div>
+                <label class="block text-slate-300 font-semibold mb-1">Telegram File ID (Opsional)</label>
+                <input type="text" name="telegram_file_id" id="editEpFileId" placeholder="BAACAgIAAxkBAAE..." class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white font-mono focus:outline-none focus:border-amber-400">
+            </div>
+
+            <div class="pt-3 flex items-center justify-end gap-3">
+                <button type="button" onclick="closeModal('editEpisodeModal')" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:text-white font-semibold">Batal</button>
+                <button type="submit" class="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold shadow-lg shadow-amber-500/20">Perbarui Episode</button>
             </div>
         </form>
     </div>
@@ -411,6 +561,18 @@ if (!empty($dramas)) {
 <!-- Embedded Episodes Data for Instant Interaction -->
 <script>
 window.dramaEpisodes = <?= json_encode($allEpisodes); ?>;
+window.dramasCatalog = <?= json_encode(!empty($dramas) ? array_combine(array_column($dramas, 'id'), $dramas) : new stdClass()); ?>;
+window.episodesCache = {};
+
+function escapeJs(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/"/g, '&quot;')
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '');
+}
 
 function openAddEpisodeModal(dramaId, dramaTitle, nextEpNum) {
     document.getElementById('addEpDramaId').value = dramaId;
@@ -420,11 +582,57 @@ function openAddEpisodeModal(dramaId, dramaTitle, nextEpNum) {
     openModal('addEpisodeModal');
 }
 
+function openEditDramaModal(dramaOrId) {
+    const drama = (typeof dramaOrId === 'object' && dramaOrId !== null) 
+        ? dramaOrId 
+        : ((window.dramasCatalog && window.dramasCatalog[dramaOrId]) || null);
+    if (!drama) return;
+    document.getElementById('editDramaId').value = drama.id;
+    document.getElementById('editDramaTitle').value = drama.title || '';
+    document.getElementById('editDramaCountry').value = drama.country_origin || 'Korea Selatan';
+    document.getElementById('editDramaYear').value = drama.release_year || new Date().getFullYear();
+    document.getElementById('editDramaPoster').value = drama.poster_url || '';
+    document.getElementById('editDramaTotalEp').value = drama.total_episodes || 0;
+    document.getElementById('editDramaFreeEp').value = drama.free_episodes_count !== undefined ? drama.free_episodes_count : 1;
+    document.getElementById('editDramaStatus').value = drama.status || 'ongoing';
+    document.getElementById('editDramaDesc').value = drama.description || '';
+
+    // Tandai checkbox genre yang cocok
+    const catIds = drama.category_ids ? String(drama.category_ids).split(',').map(s => s.trim()) : [];
+    document.querySelectorAll('.edit-category-checkbox').forEach(cb => {
+        cb.checked = catIds.includes(cb.value);
+    });
+
+    openModal('editDramaModal');
+}
+
+function openEditEpisodeModal(epId, dramaTitle) {
+    const ep = (window.episodesCache && window.episodesCache[epId]) || null;
+    if (!ep) return;
+
+    document.getElementById('editEpisodeId').value = ep.id;
+    document.getElementById('editEpDramaId').value = ep.drama_id;
+    document.getElementById('editEpDramaTitle').textContent = dramaTitle;
+    document.getElementById('editEpNumber').value = ep.episode_number;
+    document.getElementById('editEpTitle').value = ep.title || '';
+    document.getElementById('editEpChannelId').value = ep.telegram_channel_id;
+    document.getElementById('editEpMessageId').value = ep.telegram_message_id;
+    document.getElementById('editEpFileId').value = ep.telegram_file_id || '';
+
+    closeModal('manageEpisodesModal');
+    openModal('editEpisodeModal');
+}
+
 function openManageEpisodesModal(dramaId, dramaTitle) {
     document.getElementById('manageEpDramaTitle').textContent = dramaTitle;
     const episodes = window.dramaEpisodes[dramaId] || [];
     const container = document.getElementById('manageEpListContainer');
     
+    // Simpan ke cache untuk memudahkan edit
+    episodes.forEach(ep => {
+        window.episodesCache[ep.id] = ep;
+    });
+
     // Wire "+ Episode Baru" button inside modal
     const addBtn = document.getElementById('manageEpAddBtn');
     addBtn.onclick = function() {
@@ -444,7 +652,7 @@ function openManageEpisodesModal(dramaId, dramaTitle) {
         let html = '';
         episodes.forEach(ep => {
             html += `
-                <div class="p-3 bg-slate-900/80 rounded-xl border border-white/5 flex items-center justify-between text-xs">
+                <div class="p-3 bg-slate-900/80 rounded-xl border border-white/5 flex items-center justify-between text-xs hover:border-white/10 transition">
                     <div class="flex items-center gap-3">
                         <div class="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-400 font-bold flex items-center justify-center text-xs">
                             ${ep.episode_number}
@@ -454,13 +662,18 @@ function openManageEpisodesModal(dramaId, dramaTitle) {
                             <p class="text-[10px] text-slate-400 font-mono">Channel: ${ep.telegram_channel_id} | Msg ID: ${ep.telegram_message_id}</p>
                         </div>
                     </div>
-                    <form method="POST" action="" onsubmit="return confirm('Hapus episode #${ep.episode_number}?');">
-                        <input type="hidden" name="drama_action" value="delete_episode">
-                        <input type="hidden" name="episode_id" value="${ep.id}">
-                        <button type="submit" class="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition" title="Hapus Episode">
-                            <i class="fas fa-trash-alt text-xs"></i>
+                    <div class="flex items-center gap-1.5">
+                        <button type="button" onclick="openEditEpisodeModal(${ep.id}, '${escapeJs(dramaTitle)}')" class="p-1.5 rounded-lg bg-slate-800 hover:bg-amber-500/20 text-slate-400 hover:text-amber-400 transition" title="Edit Episode">
+                            <i class="fas fa-edit text-xs"></i>
                         </button>
-                    </form>
+                        <form method="POST" action="" onsubmit="return confirm('Hapus episode #${ep.episode_number}?');">
+                            <input type="hidden" name="drama_action" value="delete_episode">
+                            <input type="hidden" name="episode_id" value="${ep.id}">
+                            <button type="submit" class="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition" title="Hapus Episode">
+                                <i class="fas fa-trash-alt text-xs"></i>
+                            </button>
+                        </form>
+                    </div>
                 </div>
             `;
         });

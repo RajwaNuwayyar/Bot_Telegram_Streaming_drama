@@ -892,7 +892,8 @@ function getDramasCatalog($search = '', $filter = 'all') {
 
             $sql = "SELECT d.*, 
                 (SELECT COUNT(*) FROM episodes WHERE drama_id = d.id) as ep_count,
-                (SELECT GROUP_CONCAT(c.name SEPARATOR ', ') FROM categories c JOIN drama_categories dc ON dc.category_id = c.id WHERE dc.drama_id = d.id) as categories
+                (SELECT GROUP_CONCAT(c.name SEPARATOR ', ') FROM categories c JOIN drama_categories dc ON dc.category_id = c.id WHERE dc.drama_id = d.id) as categories,
+                (SELECT GROUP_CONCAT(category_id) FROM drama_categories WHERE drama_id = d.id) as category_ids
                 FROM dramas d";
 
             if (!empty($where)) {
@@ -1054,6 +1055,107 @@ function manageDramaAction($action, $data) {
             $stmt = $db->prepare("DELETE FROM episodes WHERE id = :id");
             $stmt->execute([':id' => $epId]);
             return ['success' => true, 'message' => "Episode #{$epId} berhasil dihapus!"];
+        }
+
+        elseif ($action === 'edit_drama') {
+            $id = (int)($data['drama_id'] ?? 0);
+            if ($id <= 0) return ['success' => false, 'message' => 'ID Drama tidak valid!'];
+
+            $title = trim($data['title'] ?? '');
+            if (empty($title)) return ['success' => false, 'message' => 'Judul drama wajib diisi!'];
+
+            $country = trim($data['country_origin'] ?? 'Korea');
+            $year = !empty($data['release_year']) ? (int)$data['release_year'] : (int)date('Y');
+            $poster = trim($data['poster_url'] ?? '');
+            $totalEp = !empty($data['total_episodes']) ? (int)$data['total_episodes'] : 0;
+            $freeEp = isset($data['free_episodes_count']) ? (int)$data['free_episodes_count'] : 1;
+            $desc = trim($data['description'] ?? '');
+            $status = in_array($data['status'] ?? '', ['ongoing', 'completed', 'hiatus']) ? $data['status'] : 'ongoing';
+
+            $stmt = $db->prepare("UPDATE dramas SET 
+                title = :t, 
+                description = :d, 
+                poster_url = :p, 
+                country_origin = :c, 
+                release_year = :y, 
+                total_episodes = :te, 
+                free_episodes_count = :fe, 
+                status = :st, 
+                updated_at = NOW() 
+                WHERE id = :id");
+            $stmt->execute([
+                ':t'  => $title,
+                ':d'  => $desc,
+                ':p'  => $poster,
+                ':c'  => $country,
+                ':y'  => $year,
+                ':te' => $totalEp,
+                ':fe' => $freeEp,
+                ':st' => $status,
+                ':id' => $id
+            ]);
+
+            // Sinkronkan kategori drama jika dikirimkan
+            if (isset($data['category_ids'])) {
+                $del = $db->prepare("DELETE FROM drama_categories WHERE drama_id = :id");
+                $del->execute([':id' => $id]);
+
+                if (is_array($data['category_ids'])) {
+                    $catStmt = $db->prepare("INSERT IGNORE INTO drama_categories (drama_id, category_id) VALUES (:did, :cid)");
+                    foreach ($data['category_ids'] as $cid) {
+                        $catStmt->execute([':did' => $id, ':cid' => (int)$cid]);
+                    }
+                }
+            }
+
+            return ['success' => true, 'message' => "Informasi drama '{$title}' berhasil diperbarui!"];
+        }
+
+        elseif ($action === 'edit_episode') {
+            $epId = (int)($data['episode_id'] ?? 0);
+            $dramaId = (int)($data['drama_id'] ?? 0);
+            $epNum = (int)($data['episode_number'] ?? 1);
+            $channelId = (int)($data['telegram_channel_id'] ?? 0);
+            $msgId = (int)($data['telegram_message_id'] ?? 0);
+            $fileId = trim($data['telegram_file_id'] ?? '');
+            $epTitle = trim($data['title'] ?? "Episode {$epNum}");
+
+            if ($epId <= 0 || $epNum <= 0 || $channelId == 0 || $msgId <= 0) {
+                return ['success' => false, 'message' => 'ID Episode, Nomor Episode, Channel ID, dan Message ID wajib diisi dengan benar!'];
+            }
+
+            // Cek apakah nomor episode bentrok dengan episode lain pada drama yang sama
+            if ($dramaId > 0) {
+                $chk = $db->prepare("SELECT id FROM episodes WHERE drama_id = :did AND episode_number = :ep AND id != :id LIMIT 1");
+                $chk->execute([':did' => $dramaId, ':ep' => $epNum, ':id' => $epId]);
+                if ($chk->fetch()) {
+                    return ['success' => false, 'message' => "Episode #{$epNum} sudah ada di drama ini! Gunakan nomor episode yang berbeda."];
+                }
+            }
+
+            $stmt = $db->prepare("UPDATE episodes SET 
+                episode_number = :ep, 
+                title = :title, 
+                telegram_channel_id = :chid, 
+                telegram_message_id = :mid, 
+                telegram_file_id = :fid 
+                WHERE id = :id");
+            $stmt->execute([
+                ':ep'    => $epNum,
+                ':title' => $epTitle,
+                ':chid'  => $channelId,
+                ':mid'   => $msgId,
+                ':fid'   => $fileId,
+                ':id'    => $epId
+            ]);
+
+            // Sinkronkan total_episodes pada drama jika nomor episode melampaui total_episodes
+            if ($dramaId > 0) {
+                $updDrama = $db->prepare("UPDATE dramas SET total_episodes = GREATEST(total_episodes, :ep), updated_at = NOW() WHERE id = :did");
+                $updDrama->execute([':ep' => $epNum, ':did' => $dramaId]);
+            }
+
+            return ['success' => true, 'message' => "Episode #{$epNum} berhasil diperbarui!"];
         }
 
         return ['success' => false, 'message' => 'Aksi tidak dikenal'];

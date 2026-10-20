@@ -142,4 +142,67 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
+
+    // 3. Inisialisasi Grafik Request Film (Khusus Tampilan Staff Admin)
+    const reqCtx = document.getElementById('requestsActivityChart');
+    if (reqCtx) {
+        const rLabels = dData.requestLabels || ['Menunggu Respon', 'Prioritas', 'Selesai', 'Ditolak'];
+        const rValues = dData.requestData || [0, 0, 0, 0];
+
+        new Chart(reqCtx, {
+            type: 'bar',
+            data: {
+                labels: rLabels,
+                datasets: [{
+                    label: 'Jumlah Request',
+                    data: rValues,
+                    backgroundColor: [
+                        'rgba(245, 158, 11, 0.8)', // Amber Menunggu
+                        'rgba(244, 63, 94, 0.8)',  // Rose Prioritas
+                        'rgba(16, 185, 129, 0.8)', // Emerald Selesai
+                        'rgba(100, 116, 139, 0.8)' // Slate Ditolak
+                    ],
+                    borderColor: [
+                        '#F59E0B',
+                        '#F43F5E',
+                        '#10B981',
+                        '#64748B'
+                    ],
+                    borderWidth: 1.5,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#1E293B',
+                        padding: 10,
+                        callbacks: {
+                            label: function(context) {
+                                let val = context.parsed.y || 0;
+                                return ` Total: ${val} request`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: { color: '#94A3B8' }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                        ticks: {
+                            color: '#94A3B8',
+                            precision: 0
+                        }
+                    }
+                }
+            }
+        });
+    }
 });
