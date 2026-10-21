@@ -28,6 +28,9 @@ const i18nDict = {
         "lang_en": "English",
         "lang_id": "Bahasa Indonesia",
         "cancel": "Cancel",
+        "theme_setting": "Display Mode",
+        "dark_mode": "Dark Mode",
+        "light_mode": "Light Mode",
 
         // Home Page
         "search_placeholder": "Search dramas...",
@@ -136,6 +139,9 @@ const i18nDict = {
         "lang_en": "English",
         "lang_id": "Bahasa Indonesia",
         "cancel": "Batal",
+        "theme_setting": "Mode Tampilan",
+        "dark_mode": "Mode Gelap",
+        "light_mode": "Mode Terang",
 
         // Home Page
         "search_placeholder": "Cari drama...",

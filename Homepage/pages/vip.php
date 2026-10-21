@@ -9,7 +9,7 @@
     </div>
 
     <!-- VIP Feature Card -->
-    <div class="bg-gradient-to-br from-[#0c2436] to-[#0A1420] border border-accent/20 rounded-3xl p-5 mb-6 relative overflow-hidden">
+    <div class="vip-banner-card bg-gradient-to-br from-[#0c2436] to-[#0A1420] border border-accent/20 rounded-3xl p-5 mb-6 relative overflow-hidden">
         <!-- Decoration -->
         <div class="absolute -right-8 -top-8 w-32 h-32 bg-accent/5 rounded-full blur-xl pointer-events-none"></div>
         <div class="absolute -left-4 -bottom-4 w-24 h-24 bg-accent/5 rounded-full blur-xl pointer-events-none"></div>

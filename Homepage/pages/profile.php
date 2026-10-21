@@ -36,7 +36,10 @@ if ($telegram_user_id) {
         <div class="w-16 h-16 rounded-full bg-darkbg border border-white/10 flex items-center justify-center shrink-0 text-textmuted text-2xl overflow-hidden relative">
             <!-- Tampilkan foto profil Telegram dari JS, default ke ikon jika tidak ada -->
             <img id="profile-avatar" src="" alt="Avatar" class="w-full h-full object-cover hidden absolute inset-0 z-10" onerror="this.classList.add('hidden')">
-            <i class="fa-regular fa-user relative z-0"></i>
+            <div id="profile-initial" class="hidden w-full h-full rounded-full bg-gradient-to-tr from-accentdark to-accent flex items-center justify-center text-darkbg font-bold text-xl absolute inset-0 z-10 shadow-inner">
+                <span id="profile-initial-char">U</span>
+            </div>
+            <i id="profile-default-icon" class="fa-regular fa-user relative z-0"></i>
         </div>
         <div class="flex-1 min-w-0">
             <h2 id="tg-username" class="text-lg font-bold truncate mb-1 text-white"><?php echo $user ? htmlspecialchars($user['first_name'] . ' ' . $user['last_name']) : 'Guest'; ?></h2>
@@ -108,6 +111,23 @@ if ($telegram_user_id) {
                 <p data-i18n="current_lang" id="profile-lang-label" class="text-[11px] text-textmuted">English</p>
             </div>
             <i class="fa-solid fa-chevron-right text-textmuted text-xs"></i>
+        </div>
+
+        <!-- Divider -->
+        <div class="h-px bg-white/5 ml-14 mr-4"></div>
+
+        <!-- Menu Item: Theme (Dark/Light) -->
+        <div onclick="toggleTheme()" class="flex items-center gap-4 p-3 rounded-2xl hover:bg-white/5 transition-colors cursor-pointer">
+            <div class="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center shrink-0 text-amber-400">
+                <i id="profile-theme-icon" class="fa-solid fa-moon text-sm"></i>
+            </div>
+            <div class="flex-1">
+                <h4 data-i18n="theme_setting" class="font-bold text-sm text-white mb-0.5">Mode Tampilan</h4>
+                <p id="profile-theme-label" class="text-[11px] text-textmuted">Dark Mode</p>
+            </div>
+            <div class="w-11 h-6 bg-cardbg border border-white/20 rounded-full p-0.5 flex items-center transition-colors relative" id="profile-theme-switch">
+                <div class="w-5 h-5 rounded-full bg-accent transition-transform transform shadow-sm" id="profile-theme-knob"></div>
+            </div>
         </div>
 
     </div>

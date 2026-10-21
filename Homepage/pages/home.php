@@ -15,26 +15,67 @@ $bot_username = "TreadLessBot";
             </div>
             <h1 class="text-xl font-bold tracking-wide">DramaStream <span class="text-[10px] text-accent tracking-widest uppercase align-top font-bold">MINI</span></h1>
         </div>
-        <!-- Profile Button with Mini Popup -->
-        <div class="relative" id="profile-btn-wrapper">
-            <button id="profile-btn" onclick="toggleProfilePopup()" class="w-9 h-9 rounded-full bg-cardbg border border-white/10 flex items-center justify-center text-textmuted hover:border-accent/40 hover:text-white transition-all active:scale-95 shadow-sm">
-                <i class="fa-regular fa-user text-sm"></i>
+
+        <!-- Header Actions: Theme Toggle & Profile Button -->
+        <div class="flex items-center gap-2">
+            <!-- Theme Toggle Button (Dark / Light Mode) -->
+            <button id="theme-toggle-btn" 
+                    onclick="toggleTheme()" 
+                    title="Ubah Mode (Dark / Light)" 
+                    aria-label="Toggle Dark/Light Mode"
+                    class="w-9 h-9 rounded-full bg-cardbg border border-white/10 flex items-center justify-center text-textmuted hover:border-accent/40 hover:text-accent transition-all active:scale-90 shadow-sm relative overflow-hidden group">
+                <!-- Sun Icon (Tampil saat Dark Mode) -->
+                <i id="theme-icon-sun" class="fa-solid fa-sun text-sm text-amber-400 group-hover:rotate-45 transition-transform duration-300"></i>
+                <!-- Moon Icon (Tampil saat Light Mode) -->
+                <i id="theme-icon-moon" class="fa-solid fa-moon text-sm text-indigo-500 group-hover:-rotate-12 transition-transform duration-300 hidden"></i>
             </button>
 
-            <!-- Mini Popup -->
-            <div id="profile-popup" class="hidden absolute right-0 top-11 w-48 bg-[#141C2B] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 backdrop-blur-md">
-                <div class="px-4 py-3 border-b border-white/5">
-                    <p id="popup-username" class="text-sm font-bold text-white truncate">—</p>
-                    <p id="popup-handle" class="text-[11px] text-textmuted truncate"></p>
+            <!-- Profile Button with Mini Popup -->
+            <div class="relative" id="profile-btn-wrapper">
+                <button id="profile-btn" 
+                        onclick="toggleProfilePopup()" 
+                        class="w-9 h-9 rounded-full bg-cardbg border border-white/10 flex items-center justify-center text-textmuted hover:border-accent/40 hover:text-white transition-all active:scale-95 shadow-sm relative overflow-hidden focus:outline-none">
+                    
+                    <!-- 1. Foto Avatar Telegram User (Jika tersedia) -->
+                    <img id="home-profile-avatar" 
+                         src="" 
+                         alt="Avatar" 
+                         class="w-full h-full object-cover hidden rounded-full" 
+                         onerror="handleHomeAvatarError()">
+                    
+                    <!-- 2. Initial Avatar (Fallback jika tidak ada foto tapi ada nama user) -->
+                    <div id="home-profile-initial" class="hidden w-full h-full rounded-full bg-gradient-to-tr from-accentdark to-accent flex items-center justify-center text-darkbg font-bold text-xs select-none shadow-inner">
+                        <span id="home-profile-initial-char">U</span>
+                    </div>
+
+                    <!-- 3. Icon Default jika belum ada data user -->
+                    <i id="home-profile-icon" class="fa-regular fa-user text-sm"></i>
+                </button>
+
+                <!-- Mini Popup -->
+                <div id="profile-popup" class="hidden absolute right-0 top-11 w-52 bg-cardbg border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 backdrop-blur-md">
+                    <div class="px-4 py-3 border-b border-white/5 flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-cardbg border border-white/10 flex items-center justify-center shrink-0 overflow-hidden relative">
+                            <img id="popup-profile-avatar" src="" alt="Avatar" class="w-full h-full object-cover hidden rounded-full" onerror="this.classList.add('hidden')">
+                            <div id="popup-profile-initial" class="hidden w-full h-full rounded-full bg-gradient-to-tr from-accentdark to-accent flex items-center justify-center text-darkbg font-bold text-xs">
+                                <span id="popup-profile-initial-char">U</span>
+                            </div>
+                            <i id="popup-profile-icon" class="fa-regular fa-user text-xs text-textmuted"></i>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p id="popup-username" class="text-sm font-bold text-white truncate">—</p>
+                            <p id="popup-handle" class="text-[11px] text-textmuted truncate"></p>
+                        </div>
+                    </div>
+                    <a href="?page=profile" class="flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors">
+                        <i class="fa-regular fa-user text-accent text-sm w-4 text-center"></i>
+                        <span data-i18n="view_profile" class="text-sm text-white">Lihat Profil</span>
+                    </a>
+                    <a href="?page=vip" class="flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors">
+                        <i class="fa-solid fa-crown text-accent text-sm w-4 text-center"></i>
+                        <span data-i18n="manage_vip" class="text-sm text-white">Kelola VIP</span>
+                    </a>
                 </div>
-                <a href="?page=profile" class="flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors">
-                    <i class="fa-regular fa-user text-accent text-sm w-4 text-center"></i>
-                    <span data-i18n="view_profile" class="text-sm text-white">Lihat Profil</span>
-                </a>
-                <a href="?page=vip" class="flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors">
-                    <i class="fa-solid fa-crown text-accent text-sm w-4 text-center"></i>
-                    <span data-i18n="manage_vip" class="text-sm text-white">Kelola VIP</span>
-                </a>
             </div>
         </div>
     </div>

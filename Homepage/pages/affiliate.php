@@ -41,7 +41,7 @@ if ($user['id'] > 0) {
     </div>
 
     <!-- Balance Card -->
-    <div class="bg-gradient-to-br from-emerald-900 to-emerald-950 border border-emerald-500/30 rounded-3xl p-6 mb-6 relative overflow-hidden">
+    <div class="affiliate-balance-card bg-gradient-to-br from-emerald-900 to-emerald-950 border border-emerald-500/30 rounded-3xl p-6 mb-6 relative overflow-hidden">
         <div class="absolute -right-10 -bottom-10 opacity-10 text-[120px] text-emerald-500">
             <i class="fa-solid fa-users"></i>
         </div>
