@@ -122,7 +122,17 @@ if (!empty($dramas)) {
         </div>
         <?php else: ?>
             <?php foreach ($dramas as $drama): 
-                $isUrl = preg_match('/^(http:\/\/|https:\/\/|\/)/i', $drama['poster_url'] ?? '');
+                $rawPoster = trim($drama['poster_url'] ?? '');
+                $isTmeLink = (bool)preg_match('/^https?:\/\/t\.me\//i', $rawPoster);
+                $posterSrc = '';
+                if (!empty($rawPoster) && !$isTmeLink) {
+                    if (preg_match('/^https?:\/\//i', $rawPoster) || strpos($rawPoster, '/') === 0 || strpos($rawPoster, 'data:image') === 0) {
+                        $posterSrc = $rawPoster;
+                    } else {
+                        // Telegram File ID! Load melalui proxy poster admin
+                        $posterSrc = 'poster_proxy.php?fid=' . urlencode($rawPoster);
+                    }
+                }
                 $epUploaded = (int)($drama['ep_count'] ?? 0);
                 $totalTarget = max($epUploaded, (int)($drama['total_episodes'] ?? 0));
                 $dramaJson = htmlspecialchars(json_encode($drama), ENT_QUOTES, 'UTF-8');
@@ -131,17 +141,21 @@ if (!empty($dramas)) {
                 
                 <!-- Poster Image Container -->
                 <div class="relative h-56 overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 flex items-center justify-center">
-                    <?php if ($isUrl): ?>
-                        <img src="<?= htmlspecialchars($drama['poster_url']); ?>" alt="<?= htmlspecialchars($drama['title']); ?>" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <?php if (!empty($posterSrc)): ?>
+                        <img src="<?= htmlspecialchars($posterSrc); ?>" alt="<?= htmlspecialchars($drama['title']); ?>" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                     <?php endif; ?>
 
-                    <!-- Styled Fallback Poster Cover (Used for Telegram file_id or broken URLs) -->
-                    <div class="<?= $isUrl ? 'hidden' : 'flex'; ?> w-full h-full flex-col items-center justify-center p-4 text-center bg-gradient-to-tr from-slate-900 via-[#131c31] to-slate-900 relative">
+                    <!-- Styled Fallback Poster Cover (Used for Telegram file_id fallback, broken URLs, or t.me links) -->
+                    <div class="<?= !empty($posterSrc) ? 'hidden' : 'flex'; ?> w-full h-full flex-col items-center justify-center p-4 text-center bg-gradient-to-tr from-slate-900 via-[#131c31] to-slate-900 relative">
                         <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#00D0B6]/20 to-sky-500/20 text-[#00D0B6] border border-[#00D0B6]/30 flex items-center justify-center text-2xl shadow-lg mb-2">
                             <i class="fas fa-clapperboard"></i>
                         </div>
                         <h4 class="font-extrabold text-white text-sm line-clamp-2"><?= htmlspecialchars($drama['title']); ?></h4>
-                        <?php if (!empty($drama['poster_url'])): ?>
+                        <?php if ($isTmeLink): ?>
+                            <span class="mt-2 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center gap-1" title="Tautan t.me bukan file gambar langsung. Gunakan direct image link atau upload dengan #poster">
+                                <i class="fas fa-exclamation-triangle text-[9px]"></i> Tautan t.me (Bukan Gambar)
+                            </span>
+                        <?php elseif (!empty($rawPoster)): ?>
                             <span class="mt-2 text-[9px] font-mono px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20 flex items-center gap-1">
                                 <i class="fab fa-telegram-plane"></i> Telegram Poster
                             </span>
@@ -248,8 +262,17 @@ if (!empty($dramas)) {
             </div>
             <div>
                 <label class="block text-slate-300 font-semibold mb-1">Poster URL / Telegram File ID</label>
-                <input type="text" name="poster_url" placeholder="https://... atau Telegram file_id" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white focus:outline-none focus:border-[#00D0B6]">
-                <p class="text-[11px] text-slate-500 mt-1">Dapat berupa URL gambar (HTTPS) atau string Telegram file_id.</p>
+                <input type="text" name="poster_url" placeholder="https://...gambar.jpg atau Telegram File ID" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white focus:outline-none focus:border-[#00D0B6]">
+                <div class="mt-2 p-3 rounded-xl bg-slate-950/70 border border-white/5 space-y-1.5 text-[11px] text-slate-400">
+                    <p class="text-slate-200 font-semibold flex items-center gap-1.5">
+                        <i class="fas fa-info-circle text-[#00D0B6]"></i> Format Poster yang Didukung:
+                    </p>
+                    <p>• <strong>Link Gambar Web:</strong> URL gambar langsung (misal dari Google/TMDB: <code>https://...gambar.jpg</code>).</p>
+                    <p>• <strong>Telegram File ID:</strong> String unik Telegram (contoh: <code>AgACAgUAA...</code>). Cukup upload foto ke channel database dengan caption <code>[Judul Drama] #poster</code>, bot akan otomatis mengisinya!</p>
+                    <p class="text-amber-400/90 font-medium pt-1 border-t border-white/5 flex items-start gap-1">
+                        <span>⚠️</span> <span><em>Catatan:</em> Tautan postingan obrolan (seperti <code>https://t.me/c/...</code>) bukan file gambar dan tidak bisa ditampilkan.</span>
+                    </p>
+                </div>
             </div>
             <div class="grid grid-cols-3 gap-3">
                 <div>
@@ -333,8 +356,17 @@ if (!empty($dramas)) {
             </div>
             <div>
                 <label class="block text-slate-300 font-semibold mb-1">Poster URL / Telegram File ID</label>
-                <input type="text" name="poster_url" id="editDramaPoster" placeholder="https://... atau Telegram file_id" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white focus:outline-none focus:border-amber-400">
-                <p class="text-[11px] text-slate-500 mt-1">Dapat berupa URL gambar (HTTPS) atau string Telegram file_id.</p>
+                <input type="text" name="poster_url" id="editDramaPoster" placeholder="https://...gambar.jpg atau Telegram File ID" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white focus:outline-none focus:border-amber-400">
+                <div class="mt-2 p-3 rounded-xl bg-slate-950/70 border border-white/5 space-y-1.5 text-[11px] text-slate-400">
+                    <p class="text-slate-200 font-semibold flex items-center gap-1.5">
+                        <i class="fas fa-info-circle text-amber-400"></i> Format Poster yang Didukung:
+                    </p>
+                    <p>• <strong>Link Gambar Web:</strong> URL gambar langsung (misal dari Google/TMDB: <code>https://...gambar.jpg</code>).</p>
+                    <p>• <strong>Telegram File ID:</strong> String unik Telegram (contoh: <code>AgACAgUAA...</code>). Cukup upload foto ke channel database dengan caption <code>[Judul Drama] #poster</code>, bot akan otomatis mengisinya!</p>
+                    <p class="text-amber-400/90 font-medium pt-1 border-t border-white/5 flex items-start gap-1">
+                        <span>⚠️</span> <span><em>Catatan:</em> Tautan postingan obrolan (seperti <code>https://t.me/c/...</code>) bukan file gambar dan tidak bisa ditampilkan.</span>
+                    </p>
+                </div>
             </div>
             <div class="grid grid-cols-3 gap-3">
                 <div>
