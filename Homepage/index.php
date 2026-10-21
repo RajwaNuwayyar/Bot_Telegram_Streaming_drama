@@ -85,8 +85,9 @@ if (!in_array($page, $allowed_pages)) {
             --accent-dark: #00A38F;
             --border-subtle: rgba(255, 255, 255, 0.06);
             --border-card: rgba(255, 255, 255, 0.08);
-            --glass-nav: rgba(20, 28, 43, 0.88);
-            --glass-border: rgba(255, 255, 255, 0.05);
+            --glass-nav: rgba(18, 25, 38, 0.78);
+            --glass-border: rgba(255, 255, 255, 0.14);
+            --glass-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.65), 0 4px 14px rgba(0, 0, 0, 0.35), inset 0 1px 1px 0 rgba(255, 255, 255, 0.16);
             --popup-bg: #141C2B;
             --modal-bg: #141C2B;
             --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
@@ -103,8 +104,9 @@ if (!in_array($page, $allowed_pages)) {
             --accent-dark: #008775;
             --border-subtle: rgba(15, 23, 42, 0.06);
             --border-card: rgba(15, 23, 42, 0.09);
-            --glass-nav: rgba(255, 255, 255, 0.94);
-            --glass-border: rgba(226, 232, 240, 0.9);
+            --glass-nav: rgba(255, 255, 255, 0.85);
+            --glass-border: rgba(15, 23, 42, 0.09);
+            --glass-shadow: 0 16px 36px -4px rgba(15, 23, 42, 0.14), 0 4px 14px rgba(15, 23, 42, 0.06), inset 0 1px 1px 0 rgba(255, 255, 255, 0.95);
             --popup-bg: #FFFFFF;
             --modal-bg: #FFFFFF;
             --shadow-card: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
@@ -122,17 +124,34 @@ if (!in_array($page, $allowed_pages)) {
             display: none; 
         }
         .main-content {
-            padding-bottom: 80px; /* Space for bottom nav */
+            padding-bottom: 96px; /* Space for floating bottom nav island */
         }
         .hide-scroll::-webkit-scrollbar {
             display: none;
         }
         .glass-nav {
             background: var(--glass-nav);
-            backdrop-filter: blur(14px);
-            -webkit-backdrop-filter: blur(14px);
-            border-top: 1px solid var(--glass-border);
-            transition: background-color 0.25s ease, border-color 0.25s ease;
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--glass-shadow);
+            transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        /* Ambient Glow & Floating Island Highlights */
+        .nav-glow {
+            background: radial-gradient(circle, rgba(0, 208, 182, 0.4) 0%, rgba(0, 208, 182, 0.1) 50%, transparent 75%);
+            filter: blur(8px);
+        }
+        .light-theme .nav-glow {
+            background: radial-gradient(circle, rgba(0, 163, 143, 0.3) 0%, rgba(0, 163, 143, 0.08) 50%, transparent 75%);
+            filter: blur(8px);
+        }
+        .nav-active i {
+            filter: drop-shadow(0 0 8px rgba(0, 208, 182, 0.55));
+        }
+        .light-theme .nav-active i {
+            filter: drop-shadow(0 0 6px rgba(0, 163, 143, 0.4));
         }
 
         /* Adaptasi elemen yang memakai utilitas Tailwind saat mode Light */
