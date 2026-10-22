@@ -108,7 +108,7 @@ function getFeaturedBanners($pdo, $limit = 5) {
 /**
  * Ambil daftar drama dengan filter kategori atau pencarian
  */
-function getDramas($pdo, $limit = 20, $category_id = null, $search = null) {
+function getDramas($pdo, $limit = 1000, $category_id = null, $search = null) {
     try {
         $sql = "
             SELECT d.id, d.title, d.slug, d.description, d.poster_url,
@@ -147,7 +147,10 @@ function getDramas($pdo, $limit = 20, $category_id = null, $search = null) {
             $params[] = "%{$search}%";
         }
 
-        $sql .= " ORDER BY d.views_count DESC, d.id DESC LIMIT " . (int)$limit;
+        $sql .= " ORDER BY d.views_count DESC, d.id DESC";
+        if ($limit !== null && (int)$limit > 0) {
+            $sql .= " LIMIT " . (int)$limit;
+        }
 
         $stmt = $pdo->prepare($sql);
         $stmt->execute($params);

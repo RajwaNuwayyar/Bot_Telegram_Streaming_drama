@@ -20,7 +20,7 @@ if ($pdo && $cat !== 'all' && !empty($cat)) {
     }
 }
 
-$dramas = ($pdo) ? getDramas($pdo, 24, $category_id, $q) : [];
+$dramas = ($pdo) ? getDramas($pdo, 1000, $category_id, $q) : [];
 
 if (empty($dramas)) {
     echo '<div class="col-span-2 py-16 flex flex-col items-center justify-center text-center">';

@@ -1,12 +1,12 @@
 <?php
 // Ambil data untuk Home dari Database
 $featuredBanners = getFeaturedBanners($pdo, 5);
-$allDramas = getDramas($pdo, 24);
+$allDramas = getDramas($pdo, 1000);
 $categories = getCategories($pdo);
 $bot_username = "TreadLessBot";
 ?>
 <!-- Home View -->
-<div class="px-5 pt-6 pb-4">
+<div class="px-5 pt-6 pb-28">
     <!-- Header -->
     <div class="flex justify-between items-center mb-6">
         <div class="flex items-center gap-2.5">
@@ -188,7 +188,12 @@ $bot_username = "TreadLessBot";
                             </span>
                         </div>
 
-
+                        <!-- Rating / Views on Top Right (Sesuai Desain Daily Drama) -->
+                        <?php if (!empty($d['views_count']) && (int)$d['views_count'] > 0): ?>
+                        <div class="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md bg-darkbg/80 backdrop-blur-md text-[10px] font-bold text-white/90 flex items-center gap-1 border border-white/10 shadow-sm">
+                            <i class="fa-solid fa-eye text-[9px] text-accent"></i> <?php echo number_format($d['views_count']); ?>
+                        </div>
+                        <?php endif; ?>
 
                         <!-- Play Icon Button overlay on hover -->
                         <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-darkbg/40 backdrop-blur-[2px]">
@@ -221,19 +226,212 @@ $bot_username = "TreadLessBot";
         <?php endif; ?>
     </div>
 
-    <!-- Server-Side Search Script logic replaced below -->
+    <!-- Slide Bar Pagination Controls (Sesuai Desain Daily Drama Bot) -->
+    <div id="pagination-wrapper" class="flex items-center justify-center gap-4 mt-6 mb-4 select-none transition-all duration-300">
+        <!-- Tombol Prev (<) -->
+        <button id="prev-page-btn" 
+                onclick="changeDramaPage(-1)" 
+                type="button"
+                title="Halaman Sebelumnya" 
+                aria-label="Previous Page"
+                class="w-12 h-12 rounded-full bg-cardbg border border-white/10 flex items-center justify-center text-accent text-base shadow-lg transition-all duration-200 active:scale-90 hover:border-accent/40 hover:text-white disabled:opacity-20 disabled:pointer-events-none">
+            <i class="fa-solid fa-chevron-left"></i>
+        </button>
+
+        <!-- Indikator Halaman (1 / X) -->
+        <button id="page-indicator-btn" 
+                onclick="promptJumpPage()" 
+                type="button"
+                title="Klik untuk lompat ke nomor halaman" 
+                aria-label="Current Page Number"
+                class="h-12 px-7 rounded-full bg-cardbg border border-white/10 flex items-center justify-center text-white font-bold text-sm tracking-wider shadow-lg transition-all duration-200 active:scale-95 hover:border-accent/40 cursor-pointer group">
+            <span id="current-page-num" class="text-white group-hover:text-accent transition-colors">1</span>
+            <span class="text-textmuted mx-2 font-normal">/</span>
+            <span id="total-pages-num" class="text-white">1</span>
+        </button>
+
+        <!-- Tombol Next (>) -->
+        <button id="next-page-btn" 
+                onclick="changeDramaPage(1)" 
+                type="button"
+                title="Halaman Selanjutnya" 
+                aria-label="Next Page"
+                class="w-12 h-12 rounded-full bg-cardbg border border-white/10 flex items-center justify-center text-accent text-base shadow-lg transition-all duration-200 active:scale-90 hover:border-accent/40 hover:text-white disabled:opacity-20 disabled:pointer-events-none">
+            <i class="fa-solid fa-chevron-right"></i>
+        </button>
+    </div>
 </div>
 
+<style>
+#dramas-grid {
+    transition: opacity 0.15s ease-out, transform 0.15s ease-out;
+}
+#dramas-grid.page-transitioning {
+    opacity: 0.15;
+    transform: scale(0.98);
+}
+.drama-slide-in {
+    animation: dramaCardIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+@keyframes dramaCardIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+</style>
+
 <script>
+// Konfigurasi Pagination (Slide Bar)
+const ITEMS_PER_PAGE = 4; // 2 kolom x 2 baris (4 drama per slide sesuai desain)
+let currentPage = 1;
+let totalPages = 1;
 let currentGenre = 'all';
 let originalCardsHTML = '';
+
+// Gesture swipe horizontal untuk slide halaman di HP/Telegram
+let touchStartX = 0;
+let touchStartY = 0;
+
+function setupSwipeGestures() {
+    const grid = document.getElementById('dramas-grid');
+    if (!grid) return;
+
+    grid.addEventListener('touchstart', (e) => {
+        if (!e.touches || e.touches.length === 0) return;
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+    grid.addEventListener('touchend', (e) => {
+        if (!e.changedTouches || e.changedTouches.length === 0) return;
+        const diffX = e.changedTouches[0].clientX - touchStartX;
+        const diffY = e.changedTouches[0].clientY - touchStartY;
+        // Geser dominan horizontal minimal 45px
+        if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 45) {
+            if (diffX < 0) {
+                // Geser ke kiri -> Halaman berikutnya (Next)
+                if (currentPage < totalPages) changeDramaPage(1);
+            } else {
+                // Geser ke kanan -> Halaman sebelumnya (Prev)
+                if (currentPage > 1) changeDramaPage(-1);
+            }
+        }
+    }, { passive: true });
+}
+
+function renderDramaPagination(targetPage = 1) {
+    const grid = document.getElementById('dramas-grid');
+    const paginationWrapper = document.getElementById('pagination-wrapper');
+    if (!grid) return;
+
+    const cards = Array.from(grid.querySelectorAll('.drama-card:not(.filtered-out)'));
+    const countLabel = document.getElementById('drama-count-label');
+
+    // Jika tidak ada hasil sama sekali
+    if (cards.length === 0) {
+        if (paginationWrapper) paginationWrapper.classList.add('hidden');
+        if (countLabel) countLabel.textContent = '0 Drama';
+        return;
+    }
+
+    if (paginationWrapper) paginationWrapper.classList.remove('hidden');
+
+    totalPages = Math.ceil(cards.length / ITEMS_PER_PAGE) || 1;
+    if (targetPage < 1) targetPage = 1;
+    if (targetPage > totalPages) targetPage = totalPages;
+    currentPage = targetPage;
+
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+
+    cards.forEach((card, idx) => {
+        if (idx >= startIndex && idx < endIndex) {
+            card.style.display = 'flex';
+            card.classList.remove('drama-slide-in');
+            void card.offsetWidth; // Trigger reflow
+            card.classList.add('drama-slide-in');
+        } else {
+            card.style.display = 'none';
+        }
+    });
+
+    // Update Text Page Number & Total
+    const currentNumEl = document.getElementById('current-page-num');
+    const totalNumEl = document.getElementById('total-pages-num');
+    const prevBtn = document.getElementById('prev-page-btn');
+    const nextBtn = document.getElementById('next-page-btn');
+
+    if (currentNumEl) currentNumEl.textContent = currentPage;
+    if (totalNumEl) totalNumEl.textContent = totalPages;
+
+    if (prevBtn) {
+        const isPrevDisabled = (currentPage <= 1);
+        prevBtn.disabled = isPrevDisabled;
+        prevBtn.classList.toggle('opacity-20', isPrevDisabled);
+        prevBtn.classList.toggle('pointer-events-none', isPrevDisabled);
+    }
+
+    if (nextBtn) {
+        const isNextDisabled = (currentPage >= totalPages);
+        nextBtn.disabled = isNextDisabled;
+        nextBtn.classList.toggle('opacity-20', isNextDisabled);
+        nextBtn.classList.toggle('pointer-events-none', isNextDisabled);
+    }
+
+    if (countLabel) countLabel.textContent = cards.length + ' Drama';
+}
+
+function goToDramaPage(targetPage) {
+    if (targetPage < 1 || targetPage > totalPages || targetPage === currentPage) return;
+    const grid = document.getElementById('dramas-grid');
+    if (grid) {
+        grid.classList.add('page-transitioning');
+        setTimeout(() => {
+            renderDramaPagination(targetPage);
+            grid.classList.remove('page-transitioning');
+            // Scroll halus jika posisi layar tergulung di bawah daftar drama
+            const gridRect = grid.getBoundingClientRect();
+            if (gridRect.top < -50) {
+                grid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 120);
+    } else {
+        renderDramaPagination(targetPage);
+    }
+}
+
+function changeDramaPage(direction) {
+    goToDramaPage(currentPage + direction);
+}
+
+function promptJumpPage() {
+    if (totalPages <= 1) return;
+    const input = prompt(`Lompat ke halaman drama (1 - ${totalPages}):`, currentPage);
+    if (input !== null) {
+        const page = parseInt(input.trim(), 10);
+        if (!isNaN(page) && page >= 1 && page <= totalPages) {
+            goToDramaPage(page);
+        } else if (!isNaN(page)) {
+            alert(`Halaman tidak valid. Masukkan angka antara 1 dan ${totalPages}.`);
+        }
+    }
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     const grid = document.getElementById('dramas-grid');
     if (grid) {
         originalCardsHTML = grid.innerHTML;
     }
-    // Tampilkan/sembunyikan tombol clear saat user mengetik (tanpa trigger filter)
+    // Inisialisasi awal pagination & gesture swipe
+    renderDramaPagination(1);
+    setupSwipeGestures();
+
+    // Tampilkan/sembunyikan tombol clear saat user mengetik
     const input = document.getElementById('drama-search-input');
     if (input) {
         input.addEventListener('input', () => {
@@ -247,7 +445,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Filter genre pill — tetap instan tanpa perlu Enter
+// Filter genre pill
 function filterDramasByGenre(slug, btn) {
     currentGenre = slug;
 
@@ -270,7 +468,6 @@ function filterDramasByGenre(slug, btn) {
 function submitSearch() {
     const input = document.getElementById('drama-search-input');
     if (!input) return;
-    // Sembunyikan keyboard virtual di mobile
     input.blur();
     applyFilters();
 }
@@ -278,15 +475,13 @@ function submitSearch() {
 // Reset pencarian dan tampilkan semua drama kembali
 function clearDramaSearch() {
     const input = document.getElementById('drama-search-input');
-    input.value = '';
-    document.getElementById('search-clear-btn').classList.add('hidden');
+    if (input) input.value = '';
+    document.getElementById('search-clear-btn')?.classList.add('hidden');
 
     const grid = document.getElementById('dramas-grid');
     if (grid && originalCardsHTML && currentGenre === 'all') {
         grid.innerHTML = originalCardsHTML;
-        const count = (originalCardsHTML.match(/class="drama-card/g) || []).length;
-        const countLabel = document.getElementById('drama-count-label');
-        if (countLabel) countLabel.textContent = count + ' Drama';
+        renderDramaPagination(1);
         return;
     }
     applyFilters();
@@ -316,8 +511,6 @@ function applyFilters() {
     const grid = document.getElementById('dramas-grid');
     if (!grid) return;
 
-    const countLabel = document.getElementById('drama-count-label');
-
     // Tampilkan loading state singkat
     grid.style.opacity = '0.5';
 
@@ -332,18 +525,15 @@ function applyFilters() {
             grid.style.opacity = '1';
             const count = (html.match(/class="drama-card/g) || []).length;
             if (count === 0) {
-                // Tidak ada hasil — tampilkan empty state
                 grid.innerHTML = emptyStateHTML(searchVal);
-                if (countLabel) countLabel.textContent = '0 Drama';
             } else {
                 grid.innerHTML = html;
-                if (countLabel) countLabel.textContent = count + ' Drama';
             }
+            renderDramaPagination(1);
         })
         .catch(err => {
             grid.style.opacity = '1';
             console.warn('Search API error, fallback ke client filter:', err);
-            // Fallback filter client-side
             const searchLower = searchVal.toLowerCase();
             let visible = 0;
             grid.querySelectorAll('.drama-card').forEach(card => {
@@ -351,11 +541,18 @@ function applyFilters() {
                 const cat = (card.getAttribute('data-category') || '').toLowerCase();
                 const matchSearch = !searchLower || title.includes(searchLower);
                 const matchGenre = currentGenre === 'all' || cat === currentGenre.toLowerCase();
-                card.style.display = (matchSearch && matchGenre) ? '' : 'none';
-                if (matchSearch && matchGenre) visible++;
+                if (matchSearch && matchGenre) {
+                    card.classList.remove('filtered-out');
+                    visible++;
+                } else {
+                    card.classList.add('filtered-out');
+                    card.style.display = 'none';
+                }
             });
-            if (visible === 0) grid.innerHTML = emptyStateHTML(searchVal);
-            if (countLabel) countLabel.textContent = visible + ' Drama';
+            if (visible === 0) {
+                grid.innerHTML = emptyStateHTML(searchVal);
+            }
+            renderDramaPagination(1);
         });
 }
 </script>
