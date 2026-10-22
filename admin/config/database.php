@@ -11,11 +11,11 @@ $envUser = getenv('DB_USER');
 $envPass = getenv('DB_PASS');
 $envName = getenv('DB_NAME');
 
-// Deteksi otomatis apakah berjalan di dalam jaringan Docker (host 'db' ter-resolve)
-$isDockerNetwork = (gethostbyname('db') !== 'db');
+// Deteksi otomatis apakah berjalan di dalam container Docker tanpa DNS delay
+$isDockerNetwork = file_exists('/.dockerenv') || (getenv('DOCKER_CONTAINER') !== false) || (getenv('IS_DOCKER') !== false);
 
 if (!defined('DB_HOST')) {
-    define('DB_HOST', $envHost ?: ($isDockerNetwork ? 'db' : 'localhost'));
+    define('DB_HOST', $envHost ?: ($isDockerNetwork ? 'db' : '127.0.0.1'));
 }
 if (!defined('DB_USER')) {
     define('DB_USER', $envUser ?: ($isDockerNetwork ? 'bot_user' : 'root'));

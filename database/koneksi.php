@@ -5,10 +5,10 @@ $envUser = getenv('DB_USER');
 $envPass = getenv('DB_PASS');
 $envDb   = getenv('DB_NAME');
 
-// Deteksi otomatis apakah berjalan di dalam jaringan Docker (host 'db' ter-resolve)
-$isDockerNetwork = (gethostbyname('db') !== 'db');
+// Deteksi otomatis apakah berjalan di dalam container Docker tanpa DNS delay
+$isDockerNetwork = file_exists('/.dockerenv') || (getenv('DOCKER_CONTAINER') !== false) || (getenv('IS_DOCKER') !== false);
 
-$host = $envHost ?: ($isDockerNetwork ? 'db' : 'localhost');
+$host = $envHost ?: ($isDockerNetwork ? 'db' : '127.0.0.1');
 $user = $envUser ?: ($isDockerNetwork ? 'bot_user' : 'root');
 $pass = ($envPass !== false && $envPass !== null) ? $envPass : ($isDockerNetwork ? 'bot_password' : '');
 $db   = $envDb ?: 'drama_bot';
@@ -18,27 +18,27 @@ try {
     $pdo = new PDO("mysql:host=$host;dbname=$db;charset=utf8mb4", $user, $pass, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_TIMEOUT => 3,
+        PDO::ATTR_TIMEOUT => 2,
     ]);
 } catch(PDOException $e) {
-    // 2. Fallback cerdas: jika host selain localhost gagal, coba localhost root (XAMPP/Laragon)
+    // 2. Fallback cerdas: jika host selain local gagal, coba local 127.0.0.1 root (XAMPP/Laragon)
     if ($host !== 'localhost' && $host !== '127.0.0.1') {
         try {
-            $pdo = new PDO("mysql:host=localhost;dbname=$db;charset=utf8mb4", 'root', '', [
+            $pdo = new PDO("mysql:host=127.0.0.1;dbname=$db;charset=utf8mb4", 'root', '', [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_TIMEOUT => 3,
+                PDO::ATTR_TIMEOUT => 2,
             ]);
         } catch(PDOException $e2) {
             die("Koneksi database gagal: " . $e2->getMessage());
         }
     } else {
-        // Fallback sebaliknya: jika localhost gagal tapi ada host docker 'db'
+        // Fallback sebaliknya: jika local gagal tapi berjalan dengan host docker 'db'
         try {
             $pdo = new PDO("mysql:host=db;dbname=$db;charset=utf8mb4", 'bot_user', 'bot_password', [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_TIMEOUT => 3,
+                PDO::ATTR_TIMEOUT => 2,
             ]);
         } catch(PDOException $e3) {
             die("Koneksi database gagal: " . $e->getMessage());
