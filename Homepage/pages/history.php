@@ -61,24 +61,16 @@ $bot_username = "TreadLessBot";
     <div class="flex flex-col gap-3.5" id="history-list">
         <?php if (!empty($historyItems)): ?>
             <?php foreach ($historyItems as $idx => $item): 
-                $status = $item['is_completed'] ? 'completed' : 'progress';
-                $poster = getPosterUrl($item['poster_url'], $idx, $item['drama_title']);
-                $duration = max(1, (int)$item['duration_seconds']);
-                $progressSec = (int)$item['progress_seconds'];
-                
-                if ($item['is_completed']) {
-                    $percent = 100;
-                } else {
-                    $percent = min(98, max(8, round(($progressSec / $duration) * 100)));
-                }
-
-                $timeAgo = timeAgoIndo($item['last_watched_at']);
-                $watchLink = "https://t.me/{$bot_username}?start=watch_{$item['episode_id']}";
-                $epLabel = !empty($item['episode_title']) ? $item['episode_title'] : ("Episode " . $item['episode_number']);
-                $catName = !empty($item['category_name']) ? $item['category_name'] : 'Drama';
+                $status    = $item['is_completed'] ? 'completed' : 'progress';
+                $poster    = getPosterUrl($item['poster_url'], $idx);  // fix: hapus argumen ke-3 yang tidak ada
+                $timeAgo   = timeAgoIndo($item['last_watched_at']);
+                $episodeId = (int)$item['episode_id'];  // cast ke int untuk keamanan
+                $watchLink = htmlspecialchars("https://t.me/{$bot_username}?start=watch_{$episodeId}", ENT_QUOTES);
+                $epLabel   = !empty($item['episode_title']) ? $item['episode_title'] : ("Episode " . $item['episode_number']);
+                $catName   = !empty($item['category_name']) ? $item['category_name'] : 'Drama';
             ?>
                 <div data-status="<?php echo $status; ?>" 
-                     onclick="playEpisode(<?php echo $item['episode_id']; ?>, '<?php echo $watchLink; ?>')"
+                     onclick="playEpisode(<?php echo $episodeId; ?>, '<?php echo $watchLink; ?>')"
                      class="history-item bg-cardbg border border-white/10 rounded-2xl p-3.5 flex gap-3.5 items-center cursor-pointer hover:border-accent/40 transition-all active:scale-[0.99] group shadow-sm">
                     
                     <!-- Thumbnail with play icon / completed icon -->
@@ -113,22 +105,29 @@ $bot_username = "TreadLessBot";
                         </div>
 
                         <p class="text-xs text-textmuted truncate mb-2.5">
-                            Ep <?php echo $item['episode_number']; ?> - "<?php echo htmlspecialchars($epLabel); ?>"
+                            Ep <?php echo $item['episode_number']; ?> &mdash; <?php echo htmlspecialchars($epLabel); ?>
                         </p>
 
-                        <!-- Progress Bar Row -->
-                        <div class="w-full h-1 bg-darkbg rounded-full overflow-hidden border border-white/5 mb-2">
-                            <div class="h-full bg-gradient-to-r from-accentdark to-accent rounded-full transition-all duration-500" 
-                                 style="width: <?php echo $percent; ?>%"></div>
-                        </div>
-
-                        <!-- Genre and Action Tags -->
-                        <div class="flex justify-between items-center pt-0.5">
-                            <span class="px-2 py-0.5 rounded text-[8px] border border-white/10 text-textmuted uppercase tracking-wider font-semibold">
-                                <?php echo htmlspecialchars($catName); ?>
-                            </span>
-                            <span class="text-[10px] text-accent flex items-center gap-1 font-medium group-hover:underline">
-                                Nonton <i class="fa-solid fa-chevron-right text-[8px]"></i>
+                        <!-- Status Badge + Genre + Action -->
+                        <div class="flex justify-between items-center">
+                            <div class="flex items-center gap-1.5">
+                                <?php if ($item['is_completed']): ?>
+                                    <!-- Badge: Selesai Ditonton -->
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-accent/15 text-accent border border-accent/30">
+                                        <i class="fa-solid fa-circle-check text-[8px]"></i> Ditonton
+                                    </span>
+                                <?php else: ?>
+                                    <!-- Badge: Belum Selesai -->
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wider bg-white/5 text-textmuted border border-white/10">
+                                        <i class="fa-solid fa-circle-play text-[8px]"></i> Belum Selesai
+                                    </span>
+                                <?php endif; ?>
+                                <span class="px-1.5 py-0.5 rounded text-[8px] border border-white/10 text-textmuted uppercase tracking-wider font-semibold">
+                                    <?php echo htmlspecialchars($catName); ?>
+                                </span>
+                            </div>
+                            <span class="text-[10px] text-accent flex items-center gap-1 font-medium group-hover:underline shrink-0">
+                                Tonton <i class="fa-solid fa-chevron-right text-[8px]"></i>
                             </span>
                         </div>
                     </div>
@@ -198,6 +197,9 @@ function confirmClearAll() {
                 document.querySelectorAll('.history-item').forEach(item => item.remove());
                 const clearBtn = document.getElementById('clear-all-btn');
                 if (clearBtn) clearBtn.remove();
+                // Sembunyikan filter pills agar tidak tampil saat list sudah kosong
+                const filterRow = document.querySelector('.history-filter-btn')?.closest('div');
+                if (filterRow) filterRow.style.display = 'none';
                 const empty = document.getElementById('history-empty');
                 empty.classList.remove('hidden');
                 empty.classList.add('flex');
