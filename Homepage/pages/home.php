@@ -4,6 +4,16 @@ $featuredBanners = getFeaturedBanners($pdo, 5);
 $allDramas = getDramas($pdo, 1000);
 $categories = getCategories($pdo);
 $bot_username = "TreadLessBot";
+
+// Ambil ID drama yang difavoritkan user untuk penandaan ikon hati
+$userFavoriteIds = [];
+$telegram_user_id = $_SESSION['telegram_user_id'] ?? null;
+if ($telegram_user_id && $pdo) {
+    $u = getUserByTelegramId($pdo, $telegram_user_id);
+    if ($u) {
+        $userFavoriteIds = getUserFavoriteIds($pdo, $u['id']);
+    }
+}
 ?>
 <!-- Home View -->
 <div class="px-5 pt-6 pb-28">
@@ -75,6 +85,10 @@ $bot_username = "TreadLessBot";
                         <i class="fa-solid fa-crown text-accent text-sm w-4 text-center"></i>
                         <span data-i18n="manage_vip" class="text-sm text-white">Kelola VIP</span>
                     </a>
+                    <a href="?page=favorites" class="flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition-colors border-t border-white/5">
+                        <i class="fa-solid fa-heart text-rose-500 text-sm w-4 text-center"></i>
+                        <span data-i18n="my_favorites" class="text-sm text-white">Drama Favorit</span>
+                    </a>
                 </div>
             </div>
         </div>
@@ -100,6 +114,92 @@ $bot_username = "TreadLessBot";
             Cari
         </button>
     </div>
+
+    <!-- 2. Featured Drama Carousel (Hero Banner) -->
+    <?php if (!empty($featuredBanners)): ?>
+    <div class="mb-6 relative" id="featured-carousel-section">
+        <div class="flex items-center justify-between mb-2.5">
+            <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-accent animate-pulse"></span>
+                <h2 class="text-xs font-bold uppercase tracking-wider text-accent" data-i18n="trending_now">Sedang Tren</h2>
+            </div>
+            <span class="text-[10px] text-textmuted font-medium"><?= count($featuredBanners); ?> Pilihan Utama</span>
+        </div>
+
+        <!-- Carousel Track with horizontal snap scroll -->
+        <div id="hero-carousel-track" class="flex overflow-x-auto snap-x snap-mandatory hide-scroll gap-3.5 pb-1 -mx-5 px-5 scroll-smooth">
+            <?php foreach ($featuredBanners as $bIdx => $banner): 
+                $bPoster = getPosterUrl($banner['poster_url'], $bIdx);
+                $bWatchId = !empty($banner['first_episode_id']) ? $banner['first_episode_id'] : $banner['id'];
+                $bPlayLink = "https://t.me/{$bot_username}?start=watch_{$bWatchId}";
+                $bCatName = !empty($banner['category_name']) ? $banner['category_name'] : 'Drama Unggulan';
+                $bEpisodes = (int)$banner['total_episodes'];
+            ?>
+                <div class="hero-slide flex-shrink-0 w-full snap-center cursor-pointer group select-none"
+                     onclick="playEpisode(<?= $bWatchId; ?>, '<?= $bPlayLink; ?>')">
+                    
+                    <div class="relative w-full aspect-[16/9] sm:aspect-[21/9] rounded-3xl bg-cardbg border border-white/10 overflow-hidden shadow-xl transition-all duration-300 group-hover:border-accent/50 group-active:scale-[0.99]">
+                        <!-- Poster Image -->
+                        <img src="<?= htmlspecialchars($bPoster); ?>" 
+                             alt="<?= htmlspecialchars($banner['title']); ?>" 
+                             class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                             onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=800&q=80';" />
+
+                        <!-- Gradient overlays for cinematic effect & contrast -->
+                        <div class="absolute inset-0 bg-gradient-to-t from-darkbg via-darkbg/50 to-transparent"></div>
+                        <div class="absolute inset-0 bg-gradient-to-r from-darkbg/90 via-darkbg/20 to-transparent"></div>
+
+                        <!-- Top Badges -->
+                        <div class="absolute top-3 left-3 flex items-center gap-1.5">
+                            <span class="px-2.5 py-1 rounded-xl bg-accent text-darkbg text-[9px] font-extrabold uppercase tracking-wider shadow-md flex items-center gap-1">
+                                <i class="fa-solid fa-fire text-[8px]"></i> HOT
+                            </span>
+                            <span class="px-2.5 py-1 rounded-xl bg-darkbg/80 backdrop-blur-md text-white text-[9px] font-bold border border-white/10">
+                                <?= htmlspecialchars($bCatName); ?>
+                            </span>
+                        </div>
+
+                        <!-- Bottom Content -->
+                        <div class="absolute bottom-3 left-3 right-3 flex items-end justify-between gap-3">
+                            <div class="min-w-0 flex-1">
+                                <h3 class="text-base sm:text-lg font-extrabold text-white leading-tight truncate drop-shadow-md mb-1 group-hover:text-accent transition-colors">
+                                    <?= htmlspecialchars($banner['title']); ?>
+                                </h3>
+                                <div class="flex items-center gap-2 text-[11px] text-slate-300">
+                                    <?php if ($bEpisodes > 0): ?>
+                                        <span class="flex items-center gap-1 font-semibold text-accent">
+                                            <i class="fa-solid fa-layer-group text-[9px]"></i> <?= $bEpisodes; ?> Episode
+                                        </span>
+                                        <span>•</span>
+                                    <?php endif; ?>
+                                    <span class="text-white/80 font-medium">Full HD</span>
+                                </div>
+                            </div>
+
+                            <!-- Play Action Button -->
+                            <button class="shrink-0 px-3.5 py-2 rounded-xl bg-accent hover:bg-accentdark text-darkbg font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-accent/25 transition-transform active:scale-95">
+                                <i class="fa-solid fa-play text-[10px] ml-0.5"></i>
+                                <span>Nonton</span>
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+            <?php endforeach; ?>
+        </div>
+
+        <!-- Carousel Pagination Dots -->
+        <div class="flex items-center justify-center gap-1.5 mt-2.5" id="hero-carousel-dots">
+            <?php foreach ($featuredBanners as $dIdx => $banner): ?>
+                <button type="button" 
+                        onclick="scrollHeroSlide(<?= $dIdx; ?>)" 
+                        aria-label="Slide <?= $dIdx + 1; ?>"
+                        class="hero-dot h-1.5 rounded-full transition-all duration-300 <?= $dIdx === 0 ? 'w-6 bg-accent' : 'w-1.5 bg-white/20 hover:bg-white/40'; ?>">
+                </button>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <!-- Request Drama Prompt Banner -->
     <div class="flex items-center justify-between bg-gradient-to-r from-accent/15 to-transparent border border-accent/20 rounded-2xl px-4 py-3 mb-6 shadow-sm">
@@ -188,12 +288,14 @@ $bot_username = "TreadLessBot";
                             </span>
                         </div>
 
-                        <!-- Rating / Views on Top Right (Sesuai Desain Daily Drama) -->
-                        <?php if (!empty($d['views_count']) && (int)$d['views_count'] > 0): ?>
-                        <div class="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md bg-darkbg/80 backdrop-blur-md text-[10px] font-bold text-white/90 flex items-center gap-1 border border-white/10 shadow-sm">
-                            <i class="fa-solid fa-eye text-[9px] text-accent"></i> <?php echo number_format($d['views_count']); ?>
-                        </div>
-                        <?php endif; ?>
+                        <!-- Heart / Favorite Button on Top Right -->
+                        <?php $isFav = in_array((int)$d['id'], $userFavoriteIds); ?>
+                        <button type="button" 
+                                onclick="event.stopPropagation(); toggleFavorite(<?= $d['id']; ?>, this)" 
+                                class="fav-btn absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-darkbg/80 backdrop-blur-md flex items-center justify-center border transition-all active:scale-75 z-20 <?= $isFav ? 'text-rose-500 border-rose-500/40 shadow-sm shadow-rose-500/20' : 'border-white/10 text-white/70 hover:text-rose-500 hover:border-rose-500/30'; ?>"
+                                title="Simpan ke Favorit">
+                            <i class="<?= $isFav ? 'fa-solid' : 'fa-regular'; ?> fa-heart text-xs"></i>
+                        </button>
 
                         <!-- Play Icon Button overlay on hover -->
                         <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-darkbg/40 backdrop-blur-[2px]">
@@ -478,6 +580,11 @@ function clearDramaSearch() {
     if (input) input.value = '';
     document.getElementById('search-clear-btn')?.classList.add('hidden');
 
+    const heroSection = document.getElementById('featured-carousel-section');
+    if (heroSection && currentGenre === 'all') {
+        heroSection.style.display = 'block';
+    }
+
     const grid = document.getElementById('dramas-grid');
     if (grid && originalCardsHTML && currentGenre === 'all') {
         grid.innerHTML = originalCardsHTML;
@@ -508,13 +615,20 @@ function emptyStateHTML(query) {
 // Kirim query ke server API
 function applyFilters() {
     const searchVal = document.getElementById('drama-search-input').value.trim();
+    const heroSection = document.getElementById('featured-carousel-section');
+    if (heroSection) {
+        heroSection.style.display = (searchVal || currentGenre !== 'all') ? 'none' : 'block';
+    }
+
     const grid = document.getElementById('dramas-grid');
     if (!grid) return;
 
     // Tampilkan loading state singkat
     grid.style.opacity = '0.5';
 
-    const apiUrl = `api/search.php?q=${encodeURIComponent(searchVal)}&cat=${encodeURIComponent(currentGenre)}`;
+    // Sertakan Telegram ID jika tersedia di environment WebApp
+    const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || '';
+    const apiUrl = `api/search.php?q=${encodeURIComponent(searchVal)}&cat=${encodeURIComponent(currentGenre)}${tgId ? '&tg_user_id=' + encodeURIComponent(tgId) : ''}`;
 
     fetch(apiUrl)
         .then(res => {
@@ -555,4 +669,72 @@ function applyFilters() {
             renderDramaPagination(1);
         });
 }
+
+// ==========================================
+// HERO BANNER CAROUSEL INTERACTION & AUTO SLIDE
+// ==========================================
+(function() {
+    const track = document.getElementById('hero-carousel-track');
+    const dots = document.querySelectorAll('.hero-dot');
+    if (!track || dots.length <= 1) return;
+
+    let autoScrollTimer = null;
+    let currentIndex = 0;
+
+    function updateDots(index) {
+        currentIndex = index;
+        dots.forEach((dot, idx) => {
+            if (idx === index) {
+                dot.classList.remove('w-1.5', 'bg-white/20');
+                dot.classList.add('w-6', 'bg-accent');
+            } else {
+                dot.classList.remove('w-6', 'bg-accent');
+                dot.classList.add('w-1.5', 'bg-white/20');
+            }
+        });
+    }
+
+    // Listener scroll untuk update dot aktif saat digeser (swipe)
+    track.addEventListener('scroll', () => {
+        const slideWidth = track.clientWidth;
+        if (slideWidth > 0) {
+            const index = Math.round(track.scrollLeft / slideWidth);
+            if (index !== currentIndex && index < dots.length) {
+                updateDots(index);
+            }
+        }
+    }, { passive: true });
+
+    // Expose scroll function untuk klik dot
+    window.scrollHeroSlide = function(index) {
+        const slideWidth = track.clientWidth;
+        track.scrollTo({
+            left: index * slideWidth,
+            behavior: 'smooth'
+        });
+        updateDots(index);
+        restartAutoScroll();
+    };
+
+    // Auto rotate banner setiap 5 detik
+    function startAutoScroll() {
+        autoScrollTimer = setInterval(() => {
+            const nextIndex = (currentIndex + 1) % dots.length;
+            window.scrollHeroSlide(nextIndex);
+        }, 5000);
+    }
+
+    function restartAutoScroll() {
+        if (autoScrollTimer) clearInterval(autoScrollTimer);
+        startAutoScroll();
+    }
+
+    // Jeda auto scroll saat disentuh / kursor berada di atas slide
+    track.addEventListener('touchstart', () => clearInterval(autoScrollTimer), { passive: true });
+    track.addEventListener('touchend', () => restartAutoScroll(), { passive: true });
+    track.addEventListener('mouseenter', () => clearInterval(autoScrollTimer));
+    track.addEventListener('mouseleave', () => restartAutoScroll());
+
+    startAutoScroll();
+})();
 </script>

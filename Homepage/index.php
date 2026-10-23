@@ -11,7 +11,7 @@ require_once __DIR__ . '/includes/db_queries.php';
 
 // Routing sederhana
 $page = isset($_GET['page']) ? $_GET['page'] : 'home';
-$allowed_pages = ['home', 'history', 'vip', 'profile', 'affiliate', 'request'];
+$allowed_pages = ['home', 'history', 'vip', 'profile', 'affiliate', 'request', 'favorites'];
 
 if (!in_array($page, $allowed_pages)) {
     $page = 'home';
@@ -474,6 +474,116 @@ if (!in_array($page, $allowed_pages)) {
                 if (popupUsername && !cachedName) popupUsername.textContent = 'Pengguna Drama';
             }
         });
+
+        // Mini App Floating Toast Notification
+        function showMiniToast(message, type = 'info') {
+            const existing = document.getElementById('app-mini-toast');
+            if (existing) existing.remove();
+
+            const toast = document.createElement('div');
+            toast.id = 'app-mini-toast';
+            const isFav = (type === 'favorite');
+            const isErr = (type === 'error');
+            const icon = isFav ? 'fa-solid fa-heart text-rose-500' : (isErr ? 'fa-solid fa-circle-exclamation text-amber-400' : 'fa-solid fa-circle-check text-accent');
+
+            toast.className = 'fixed top-5 inset-x-0 mx-auto w-fit max-w-[85vw] z-[9999] px-4 py-2.5 rounded-full bg-cardbg/95 border border-white/10 shadow-2xl backdrop-blur-md flex items-center gap-2.5 text-xs text-white font-medium select-none pointer-events-none transition-all duration-300';
+            toast.innerHTML = `<i class="${icon}"></i> <span>${message}</span>`;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-10px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 2400);
+        }
+
+        // Global function untuk toggle favorite drama
+        function toggleFavorite(dramaId, btnElement) {
+            if (!dramaId) return;
+            const icon = btnElement ? btnElement.querySelector('i') : null;
+            const isCurrentlyFav = icon && icon.classList.contains('fa-solid');
+
+            // Optimistic UI Toggle
+            if (icon && btnElement) {
+                if (isCurrentlyFav) {
+                    icon.classList.remove('fa-solid');
+                    icon.classList.add('fa-regular');
+                    btnElement.classList.remove('text-rose-500', 'border-rose-500/40');
+                    btnElement.classList.add('text-white/70');
+                } else {
+                    icon.classList.remove('fa-regular');
+                    icon.classList.add('fa-solid');
+                    btnElement.classList.add('text-rose-500', 'border-rose-500/40');
+                    btnElement.classList.remove('text-white/70');
+                    btnElement.classList.add('scale-125');
+                    setTimeout(() => btnElement.classList.remove('scale-125'), 200);
+                }
+            }
+
+            const tgUser = getTelegramUser();
+            const tgId = tgUser?.id || localStorage.getItem('tg_user_id') || '';
+
+            fetch('api/toggle_favorite.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ drama_id: dramaId, tg_user_id: tgId })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    showMiniToast(data.message, data.is_favorite ? 'favorite' : 'info');
+
+                    // Sinkronisasi badge counter jika ada di halaman profil
+                    const profFavCount = document.getElementById('profile-fav-count');
+                    if (profFavCount && typeof data.favorites_count !== 'undefined') {
+                        profFavCount.textContent = data.favorites_count;
+                    }
+                    const favBadge = document.getElementById('fav-count-badge');
+                    if (favBadge && typeof data.favorites_count !== 'undefined') {
+                        favBadge.textContent = data.favorites_count + ' Drama';
+                    }
+
+                    // Jika berada di halaman favorites.php dan di-unfavorite, hapus kartu dengan transisi
+                    if (!data.is_favorite) {
+                        const favCard = document.getElementById('fav-card-' + dramaId);
+                        if (favCard) {
+                            favCard.style.opacity = '0';
+                            favCard.style.transform = 'scale(0.85)';
+                            favCard.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+                            setTimeout(() => {
+                                favCard.remove();
+                                const remaining = document.querySelectorAll('.fav-drama-card').length;
+                                if (remaining === 0) {
+                                    const emptyBox = document.getElementById('fav-empty-state');
+                                    const grid = document.getElementById('fav-grid');
+                                    if (emptyBox) emptyBox.classList.remove('hidden');
+                                    if (grid) grid.classList.add('hidden');
+                                }
+                            }, 300);
+                        }
+                    }
+                } else {
+                    // Revert optimistic UI on error
+                    if (icon && btnElement) {
+                        if (isCurrentlyFav) {
+                            icon.classList.add('fa-solid');
+                            icon.classList.remove('fa-regular');
+                            btnElement.classList.add('text-rose-500', 'border-rose-500/40');
+                            btnElement.classList.remove('text-white/70');
+                        } else {
+                            icon.classList.add('fa-regular');
+                            icon.classList.remove('fa-solid');
+                            btnElement.classList.remove('text-rose-500', 'border-rose-500/40');
+                            btnElement.classList.add('text-white/70');
+                        }
+                    }
+                    showMiniToast(data.error || 'Gagal mengubah status favorit', 'error');
+                }
+            })
+            .catch(err => {
+                showMiniToast('Koneksi terganggu', 'error');
+            });
+        }
 
         // Global function untuk memutar episode dan mencatat history
         function playEpisode(episodeId, playLink) {

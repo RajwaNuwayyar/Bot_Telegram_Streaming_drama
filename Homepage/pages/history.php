@@ -51,6 +51,10 @@ $bot_username = "TreadLessBot";
         <button onclick="filterHistory('completed', this)" data-i18n="filter_completed" class="history-filter-btn px-4 py-2 rounded-full bg-cardbg border border-white/5 text-textmuted text-xs hover:text-white transition-all">
             Selesai
         </button>
+        <a href="?page=favorites" class="px-3.5 py-2 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95">
+            <i class="fa-solid fa-heart text-[10px] text-rose-500"></i>
+            <span data-i18n="favorites">Favorit</span>
+        </a>
     </div>
 
     <!-- History List -->

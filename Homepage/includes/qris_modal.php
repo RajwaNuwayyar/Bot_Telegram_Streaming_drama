@@ -168,7 +168,12 @@ function processPayment(planId, amount) {
     // (Bisa dikembangkan lebih lanjut)
 
     const user = getTelegramUser();
-    const url = `../payment/request_qris.php?tg_user_id=${user.id}&username=${user.username || ''}&first_name=${user.first_name || 'User'}&plan_id=${planId}`;
+    if (!user || !user.id) {
+        openTelegramRequiredModal();
+        return;
+    }
+
+    const url = `../payment/request_qris.php?tg_user_id=${user.id}&username=${encodeURIComponent(user.username || '')}&first_name=${encodeURIComponent(user.first_name || 'User')}&plan_id=${planId}`;
     
     fetch(url)
         .then(res => res.json())
@@ -303,5 +308,35 @@ function finishVipSuccess() {
     window.location.href = '?page=home';
 }
 
+function openTelegramRequiredModal() {
+    const modal = document.getElementById('telegram-required-modal');
+    if (modal) modal.classList.remove('hidden');
+}
 
+function closeTelegramRequiredModal() {
+    const modal = document.getElementById('telegram-required-modal');
+    if (modal) modal.classList.add('hidden');
+}
 </script>
+
+<!-- Modal Peringatan Buka di Telegram -->
+<div id="telegram-required-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md hidden transition-all duration-300 p-4">
+    <div class="w-full max-w-sm bg-cardbg border border-white/10 rounded-3xl p-6 shadow-2xl relative text-center animate-in zoom-in-95 duration-200">
+        <div class="w-16 h-16 rounded-2xl bg-sky-500/10 border border-sky-500/20 text-sky-400 flex items-center justify-center text-3xl mx-auto mb-4">
+            <i class="fa-brands fa-telegram"></i>
+        </div>
+        <h3 class="text-base font-bold text-white mb-2">Buka di Aplikasi Telegram</h3>
+        <p class="text-xs text-textmuted leading-relaxed mb-6">
+            Demi keamanan transaksi dan aktivasi otomatis paket VIP ke akun Anda, pembayaran QRIS wajib dilakukan melalui bot Telegram resmi <strong>@TreadLessBot</strong>.
+        </p>
+        <div class="space-y-2.5">
+            <a href="https://t.me/TreadLessBot/myapp" target="_blank" class="w-full py-3.5 rounded-xl bg-accent hover:bg-accentdark text-darkbg font-bold text-xs shadow-lg shadow-accent/20 transition-all flex items-center justify-center gap-2 active:scale-95">
+                <i class="fa-solid fa-paper-plane text-[11px]"></i>
+                Buka di Bot Telegram
+            </a>
+            <button type="button" onclick="closeTelegramRequiredModal()" class="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-textmuted hover:text-white text-xs font-semibold transition-colors">
+                Tutup
+            </button>
+        </div>
+    </div>
+</div>

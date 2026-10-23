@@ -220,7 +220,8 @@ function getUserByTelegramId($pdo, $telegram_id) {
 
 function getUserStats($pdo, $user_id) {
     try {
-        $stats = ['watched' => 0, 'completed' => 0];
+        $stats = ['watched' => 0, 'completed' => 0, 'favorites' => 0];
+        if (!$user_id) return $stats;
         
         $stmt = $pdo->prepare("SELECT COUNT(*) FROM watch_history WHERE user_id = ?");
         $stmt->execute([$user_id]);
@@ -229,10 +230,58 @@ function getUserStats($pdo, $user_id) {
         $stmt2 = $pdo->prepare("SELECT COUNT(*) FROM watch_history WHERE user_id = ? AND is_completed = 1");
         $stmt2->execute([$user_id]);
         $stats['completed'] = (int)$stmt2->fetchColumn();
+
+        $stmt3 = $pdo->prepare("SELECT COUNT(*) FROM favorites WHERE user_id = ?");
+        $stmt3->execute([$user_id]);
+        $stats['favorites'] = (int)$stmt3->fetchColumn();
         
         return $stats;
     } catch(PDOException $e) {
-        return ['watched' => 0, 'completed' => 0];
+        return ['watched' => 0, 'completed' => 0, 'favorites' => 0];
+    }
+}
+
+/**
+ * Mengambil daftar drama yang difavoritkan oleh pengguna
+ */
+function getUserFavorites($pdo, $user_id) {
+    if (!$user_id) return [];
+    try {
+        $sql = "
+            SELECT d.id, d.title, d.poster_url, d.views_count,
+                   COALESCE(NULLIF(d.total_episodes, 0), (SELECT COUNT(*) FROM episodes ep WHERE ep.drama_id = d.id), 0) as total_episodes,
+                   (SELECT e.id FROM episodes e WHERE e.drama_id = d.id ORDER BY e.episode_number ASC LIMIT 1) as first_episode_id,
+                   COALESCE((SELECT c.name FROM categories c 
+                    INNER JOIN drama_categories dc ON dc.category_id = c.id 
+                    WHERE dc.drama_id = d.id LIMIT 1), 'Drama') as category_name,
+                   COALESCE((SELECT c.slug FROM categories c 
+                    INNER JOIN drama_categories dc ON dc.category_id = c.id 
+                    WHERE dc.drama_id = d.id LIMIT 1), 'drama') as category_slug,
+                   f.created_at as favorited_at
+            FROM favorites f
+            INNER JOIN dramas d ON f.drama_id = d.id
+            WHERE f.user_id = ?
+            ORDER BY f.created_at DESC
+        ";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$user_id]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        return [];
+    }
+}
+
+/**
+ * Mengambil array ID drama yang difavoritkan user untuk penandaan ikon hati di kartu drama
+ */
+function getUserFavoriteIds($pdo, $user_id) {
+    if (!$user_id) return [];
+    try {
+        $stmt = $pdo->prepare("SELECT drama_id FROM favorites WHERE user_id = ?");
+        $stmt->execute([$user_id]);
+        return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+    } catch (PDOException $e) {
+        return [];
     }
 }
 ?>

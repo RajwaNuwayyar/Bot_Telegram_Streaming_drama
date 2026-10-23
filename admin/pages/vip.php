@@ -205,7 +205,7 @@ $allTx = getRecentVipPurchases(100, $filter, $search);
                                 <?= !empty($tx['paid_at']) ? '<span class="text-emerald-400 font-medium">' . date('d M Y, H:i', strtotime($tx['paid_at'])) . '</span>' : '<span class="text-slate-500">-</span>'; ?>
                             </td>
                             <td class="text-right">
-                                <button onclick="showToast('Invoice #<?= $tx['id']; ?>: <?= htmlspecialchars($tx['plan_name'] ?? 'VIP'); ?> (<?= formatRupiah($tx['amount']); ?>)', 'info')" class="p-2 rounded-lg bg-slate-800 hover:bg-[#00D0B6]/20 hover:text-[#00D0B6] text-slate-400 transition" title="Lihat Rincian Transaksi">
+                                <button onclick='openInvoiceModal(<?= json_encode($tx, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>)' class="p-2 rounded-lg bg-slate-800 hover:bg-[#00D0B6]/20 hover:text-[#00D0B6] text-slate-400 transition" title="Lihat Rincian Faktur & Pembayaran">
                                     <i class="fas fa-file-invoice text-xs"></i>
                                 </button>
                             </td>
@@ -219,3 +219,202 @@ $allTx = getRecentVipPurchases(100, $filter, $search);
     </div>
 
 </div>
+
+<!-- Modal Detail Rincian Faktur / Transaksi VIP -->
+<div id="viewInvoiceModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-[#111827] border border-white/10 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative text-xs animate-in fade-in zoom-in-95 duration-150">
+        <!-- Close button -->
+        <button onclick="closeModal('viewInvoiceModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition">
+            <i class="fas fa-times text-base"></i>
+        </button>
+
+        <!-- Header Modal -->
+        <div class="flex items-center gap-3.5 mb-5 pb-4 border-b border-white/10">
+            <div class="w-11 h-11 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center justify-center text-lg">
+                <i class="fas fa-file-invoice-dollar"></i>
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <h3 class="font-bold text-white text-base font-heading">Faktur Transaksi VIP</h3>
+                    <span id="inv-modal-id" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-800 text-slate-300 border border-white/5">#0</span>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-0.5">Rincian data transaksi langganan dan status gateway pembayaran</p>
+            </div>
+        </div>
+
+        <div class="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+            <!-- 1. Status & Nominal Summary Card -->
+            <div class="p-4 rounded-xl bg-slate-900/80 border border-white/5 flex items-center justify-between">
+                <div>
+                    <span class="text-[10px] text-slate-400 uppercase tracking-wider block mb-1">Total Tagihan</span>
+                    <h2 id="inv-modal-amount" class="text-2xl font-black text-[#00D0B6] tracking-tight">Rp 0</h2>
+                    <span id="inv-modal-method" class="text-[11px] text-slate-400 font-medium">Metode: QRIS Midtrans</span>
+                </div>
+                <div class="text-right">
+                    <span class="text-[10px] text-slate-400 uppercase tracking-wider block mb-1">Status Transaksi</span>
+                    <div id="inv-modal-status-badge">
+                        <!-- Badge dynamically inserted -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Data Pelanggan -->
+            <div class="p-3.5 rounded-xl bg-slate-900/40 border border-white/5 space-y-2">
+                <div class="flex items-center justify-between">
+                    <span class="font-bold text-slate-300 flex items-center gap-1.5">
+                        <i class="fas fa-user text-slate-500"></i> Informasi Pelanggan
+                    </span>
+                    <a id="inv-modal-user-link" href="index.php?page=users" target="_blank" class="text-[10px] text-[#00D0B6] hover:underline font-semibold">
+                        Buka di Menu Users &rarr;
+                    </a>
+                </div>
+                <div class="grid grid-cols-2 gap-2 pt-1 text-slate-300">
+                    <div>
+                        <span class="text-[10px] text-slate-500 block">Nama / Profil:</span>
+                        <span id="inv-modal-user-name" class="font-bold text-white">-</span>
+                    </div>
+                    <div>
+                        <span class="text-[10px] text-slate-500 block">Telegram ID:</span>
+                        <span id="inv-modal-user-tg" class="font-mono text-slate-300">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Rincian Paket & Layanan -->
+            <div class="p-3.5 rounded-xl bg-slate-900/40 border border-white/5 space-y-2">
+                <span class="font-bold text-slate-300 flex items-center gap-1.5">
+                    <i class="fas fa-crown text-amber-400"></i> Paket Langganan VIP
+                </span>
+                <div class="grid grid-cols-2 gap-2 pt-1">
+                    <div>
+                        <span class="text-[10px] text-slate-500 block">Nama Paket:</span>
+                        <span id="inv-modal-plan-name" class="font-bold text-amber-300">-</span>
+                    </div>
+                    <div>
+                        <span class="text-[10px] text-slate-500 block">Durasi Langganan:</span>
+                        <span id="inv-modal-plan-duration" class="font-semibold text-white">-</span>
+                    </div>
+                    <div class="col-span-2 pt-1 border-t border-white/5">
+                        <span class="text-[10px] text-slate-500 block">Masa Aktif VIP Akun:</span>
+                        <span id="inv-modal-vip-period" class="font-medium text-slate-300 text-[11px]">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Rincian Gateway Pembayaran & Timestamp -->
+            <div class="p-3.5 rounded-xl bg-slate-900/40 border border-white/5 space-y-2">
+                <span class="font-bold text-slate-300 flex items-center gap-1.5">
+                    <i class="fas fa-qrcode text-[#00D0B6]"></i> Detail Gateway QRIS
+                </span>
+                <div class="space-y-1.5 pt-1 text-slate-300">
+                    <div class="flex justify-between items-center">
+                        <span class="text-[10px] text-slate-500">Order ID / Ref Gateway:</span>
+                        <span id="inv-modal-gateway-ref" class="font-mono font-bold text-[#00D0B6] select-all">-</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-[10px] text-slate-500">Waktu Order Dibuat:</span>
+                        <span id="inv-modal-created-at" class="text-slate-300">-</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-[10px] text-slate-500">Waktu Pembayaran Sukses:</span>
+                        <span id="inv-modal-paid-at" class="text-slate-300 font-semibold">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer Modal -->
+        <div class="pt-4 mt-4 border-t border-white/10 flex items-center justify-between">
+            <button type="button" onclick="copyInvoiceSummary()" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-semibold transition flex items-center gap-1.5">
+                <i class="fas fa-copy text-xs"></i> Salin Rincian
+            </button>
+            <button type="button" onclick="closeModal('viewInvoiceModal')" class="px-5 py-2 rounded-xl bg-[#00D0B6] hover:bg-[#00D0B6]/90 text-slate-950 font-bold transition">
+                Tutup
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentSelectedInvoice = null;
+
+function openInvoiceModal(tx) {
+    currentSelectedInvoice = tx;
+    if (!tx) return;
+
+    document.getElementById('inv-modal-id').textContent = '#' + tx.id;
+    document.getElementById('inv-modal-amount').textContent = 'Rp ' + Number(tx.amount || 0).toLocaleString('id-ID');
+    
+    const method = (tx.payment_method || 'QRIS').toUpperCase();
+    const gateway = tx.gateway_name ? ' (' + tx.gateway_name.toUpperCase() + ')' : '';
+    document.getElementById('inv-modal-method').textContent = 'Metode: ' + method + gateway;
+
+    // Status Badge
+    const st = (tx.status || 'pending').toLowerCase();
+    let badgeHtml = '';
+    if (st === 'paid' || st === 'completed' || st === 'active') {
+        badgeHtml = '<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"><i class="fas fa-check-circle mr-1"></i> PAID (Lunas)</span>';
+    } else if (st === 'pending') {
+        badgeHtml = '<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20"><i class="fas fa-clock mr-1"></i> PENDING (Menunggu)</span>';
+    } else {
+        badgeHtml = '<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20"><i class="fas fa-times-circle mr-1"></i> ' + st.toUpperCase() + '</span>';
+    }
+    document.getElementById('inv-modal-status-badge').innerHTML = badgeHtml;
+
+    // Customer
+    const custName = tx.first_name || (tx.username ? '@' + tx.username : 'User #' + tx.user_id);
+    document.getElementById('inv-modal-user-name').textContent = custName;
+    document.getElementById('inv-modal-user-tg').textContent = tx.telegram_user_id || '-';
+    document.getElementById('inv-modal-user-link').href = 'index.php?page=users&search=' + encodeURIComponent(tx.telegram_user_id || tx.user_id);
+
+    // Plan
+    document.getElementById('inv-modal-plan-name').textContent = tx.plan_name || 'Paket VIP';
+    document.getElementById('inv-modal-plan-duration').textContent = tx.duration_days ? (tx.duration_days + ' Hari') : '-';
+    
+    if (tx.vip_start_at && tx.vip_end_at) {
+        document.getElementById('inv-modal-vip-period').textContent = formatDateTime(tx.vip_start_at) + ' s/d ' + formatDateTime(tx.vip_end_at);
+    } else if (st === 'paid') {
+        document.getElementById('inv-modal-vip-period').textContent = 'VIP Aktif';
+    } else {
+        document.getElementById('inv-modal-vip-period').textContent = 'Belum Aktif (Menunggu Pembayaran)';
+    }
+
+    // Gateway & Timestamps
+    document.getElementById('inv-modal-gateway-ref').textContent = tx.gateway_ref_id || ('INV-' + tx.id);
+    document.getElementById('inv-modal-created-at').textContent = formatDateTime(tx.created_at);
+    document.getElementById('inv-modal-paid-at').textContent = tx.paid_at ? formatDateTime(tx.paid_at) : 'Belum Dibayar (-)';
+
+    openModal('viewInvoiceModal');
+}
+
+function formatDateTime(dateStr) {
+    if (!dateStr) return '-';
+    try {
+        const d = new Date(dateStr.replace(' ', 'T'));
+        if (isNaN(d.getTime())) return dateStr;
+        return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) + ', ' +
+               d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+    } catch(e) {
+        return dateStr;
+    }
+}
+
+function copyInvoiceSummary() {
+    if (!currentSelectedInvoice) return;
+    const tx = currentSelectedInvoice;
+    const summary = `FAKTUR TRANSAKSI VIP #${tx.id}
+Paket: ${tx.plan_name || 'VIP'}
+Nominal: Rp ${Number(tx.amount || 0).toLocaleString('id-ID')}
+Status: ${(tx.status || 'pending').toUpperCase()}
+Ref Order: ${tx.gateway_ref_id || ('INV-' + tx.id)}
+Pelanggan: ${tx.first_name || tx.username || tx.user_id} (TG: ${tx.telegram_user_id || '-'})
+Waktu Dibuat: ${tx.created_at || '-'}
+Waktu Dibayar: ${tx.paid_at || '-'}`;
+
+    navigator.clipboard.writeText(summary).then(() => {
+        showToast('Rincian faktur transaksi disalin ke clipboard!', 'success');
+    }).catch(() => {
+        showToast('Gagal menyalin ke clipboard', 'error');
+    });
+}
+</script>

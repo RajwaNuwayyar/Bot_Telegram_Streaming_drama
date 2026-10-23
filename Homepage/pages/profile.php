@@ -26,7 +26,7 @@ if ($telegram_user_id) {
             </div>
             <h1 data-i18n="profile_title" class="text-xl font-bold">Profile</h1>
         </div>
-        <button class="w-8 h-8 rounded-full bg-cardbg border border-white/5 flex items-center justify-center text-textmuted hover:text-white transition-colors">
+        <button onclick="openAboutModal()" title="Tentang DramaStream & Bantuan" class="w-8 h-8 rounded-full bg-cardbg border border-white/5 flex items-center justify-center text-textmuted hover:text-white transition-colors active:scale-95">
             <i class="fa-solid fa-circle-exclamation text-sm"></i>
         </button>
     </div>
@@ -60,15 +60,21 @@ if ($telegram_user_id) {
     </div>
 
     <!-- Stats Grid -->
-    <div class="grid grid-cols-2 gap-3 mb-6">
+    <div class="grid grid-cols-3 gap-2.5 mb-6">
         <div class="bg-cardbg border border-white/5 rounded-2xl py-3 px-2 flex flex-col items-center justify-center">
-            <h3 class="text-xl font-bold text-white mb-1"><?php echo $stats['watched']; ?></h3>
+            <h3 class="text-xl font-bold text-white mb-0.5"><?php echo $stats['watched']; ?></h3>
             <p data-i18n="watched" class="text-[10px] text-textmuted">Watched</p>
         </div>
         <div class="bg-cardbg border border-white/5 rounded-2xl py-3 px-2 flex flex-col items-center justify-center">
-            <h3 class="text-xl font-bold text-white mb-1"><?php echo $stats['completed']; ?></h3>
+            <h3 class="text-xl font-bold text-white mb-0.5"><?php echo $stats['completed']; ?></h3>
             <p data-i18n="completed" class="text-[10px] text-textmuted">Completed</p>
         </div>
+        <a href="?page=favorites" class="bg-cardbg border border-white/5 hover:border-rose-500/40 rounded-2xl py-3 px-2 flex flex-col items-center justify-center transition-all active:scale-95 group">
+            <h3 id="profile-fav-count" class="text-xl font-bold text-rose-400 mb-0.5 group-hover:scale-110 transition-transform"><?php echo $stats['favorites'] ?? 0; ?></h3>
+            <p class="text-[10px] text-textmuted group-hover:text-rose-300 transition-colors flex items-center gap-1">
+                <i class="fa-solid fa-heart text-[8px] text-rose-500"></i> <span data-i18n="favorites">Favorit</span>
+            </p>
+        </a>
     </div>
 
     <!-- Highlighted Action (Manage VIP) -->
@@ -85,6 +91,26 @@ if ($telegram_user_id) {
 
     <!-- Menu List -->
     <div class="bg-cardbg border border-white/5 rounded-3xl p-2 mb-6">
+
+        <!-- Menu Item: Favorites -->
+        <a href="?page=favorites" class="flex items-center gap-4 p-3 rounded-2xl hover:bg-white/5 transition-colors">
+            <div class="w-8 h-8 rounded-full bg-rose-500/10 flex items-center justify-center shrink-0 text-rose-500">
+                <i class="fa-solid fa-heart text-sm"></i>
+            </div>
+            <div class="flex-1">
+                <h4 data-i18n="my_favorites" class="font-bold text-sm text-white mb-0.5">Drama Favorit Saya</h4>
+                <p data-i18n="favorites_desc" class="text-[11px] text-textmuted">Koleksi drama yang kamu sukai</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-300 text-[10px] font-bold">
+                    <?= (int)($stats['favorites'] ?? 0); ?>
+                </span>
+                <i class="fa-solid fa-chevron-right text-textmuted text-xs"></i>
+            </div>
+        </a>
+
+        <!-- Divider -->
+        <div class="h-px bg-white/5 ml-14 mr-4"></div>
 
         <!-- Menu Item: Affiliate -->
         <a href="?page=affiliate" class="flex items-center gap-4 p-3 rounded-2xl hover:bg-white/5 transition-colors">
@@ -193,4 +219,120 @@ if ($telegram_user_id) {
         }
         closeLanguageModal();
     }
+
+    // Modal Tentang DramaStream & Bantuan
+    function openAboutModal() {
+        const modal = document.getElementById('about-modal');
+        if (modal) modal.classList.remove('hidden');
+        if (typeof applyTranslations === 'function') applyTranslations();
+    }
+
+    function closeAboutModal() {
+        const modal = document.getElementById('about-modal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    // Tutup modal jika klik area luar (backdrop)
+    document.addEventListener('click', function(e) {
+        const aboutModal = document.getElementById('about-modal');
+        if (aboutModal && e.target === aboutModal) {
+            closeAboutModal();
+        }
+        const langModal = document.getElementById('language-modal');
+        if (langModal && e.target === langModal) {
+            closeLanguageModal();
+        }
+    });
 </script>
+
+<!-- Modal Dialog: About DramaStream & FAQ -->
+<div id="about-modal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 transition-all">
+    <div class="bg-cardbg border border-white/10 rounded-3xl w-full max-w-sm max-h-[85vh] flex flex-col overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-200">
+        <!-- Header -->
+        <div class="p-5 border-b border-white/5 flex justify-between items-center bg-slate-900/40">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-accentdark to-accent flex items-center justify-center shadow-lg shadow-accent/20">
+                    <i class="fa-solid fa-play text-darkbg text-sm ml-0.5"></i>
+                </div>
+                <div>
+                    <h3 data-i18n="about_title" class="text-base font-bold text-white">Tentang DramaStream</h3>
+                    <p data-i18n="about_subtitle" class="text-[11px] text-accent font-semibold tracking-wider">Telegram Mini App Streaming</p>
+                </div>
+            </div>
+            <button onclick="closeAboutModal()" class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-textmuted hover:text-white transition-colors">
+                <i class="fa-solid fa-xmark text-sm"></i>
+            </button>
+        </div>
+
+        <!-- Scrollable Content -->
+        <div class="p-5 overflow-y-auto space-y-4 text-xs hide-scroll">
+            <!-- App Version Badge -->
+            <div class="bg-darkbg/80 border border-white/5 rounded-2xl p-3.5 flex items-center justify-between">
+                <div>
+                    <p class="font-bold text-white text-xs">DramaStream Bot</p>
+                    <p class="text-[10px] text-textmuted">Versi 5.0 Stable • Cloud CDN</p>
+                </div>
+                <span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-accent/20 text-accent border border-accent/30">
+                    ACTIVE
+                </span>
+            </div>
+
+            <!-- Features Info List -->
+            <div class="space-y-3">
+                <!-- Feature 1: Fast CDN Streaming -->
+                <div class="flex items-start gap-3 p-3 rounded-2xl bg-white/[0.02] border border-white/5">
+                    <div class="w-8 h-8 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center shrink-0 text-accent text-sm">
+                        <i class="fa-solid fa-bolt-lightning"></i>
+                    </div>
+                    <div>
+                        <h4 data-i18n="about_feature_1_title" class="font-bold text-white mb-0.5">Streaming Cepat Cloud CDN</h4>
+                        <p data-i18n="about_feature_1_desc" class="text-[11px] text-textmuted leading-relaxed">Nonton drama Korea, China, dan Asia langsung di Telegram dengan resolusi HD dan tanpa ribet.</p>
+                    </div>
+                </div>
+
+                <!-- Feature 2: VIP -->
+                <div class="flex items-start gap-3 p-3 rounded-2xl bg-white/[0.02] border border-white/5">
+                    <div class="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0 text-amber-400 text-sm">
+                        <i class="fa-solid fa-crown"></i>
+                    </div>
+                    <div>
+                        <h4 data-i18n="about_feature_2_title" class="font-bold text-white mb-0.5">Keanggotaan VIP</h4>
+                        <p data-i18n="about_feature_2_desc" class="text-[11px] text-textmuted leading-relaxed">Akses seluruh episode tanpa batas, bebas jeda iklan, serta prioritas request drama langsung diunggah admin.</p>
+                    </div>
+                </div>
+
+                <!-- Feature 3: Affiliate -->
+                <div class="flex items-start gap-3 p-3 rounded-2xl bg-white/[0.02] border border-white/5">
+                    <div class="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0 text-emerald-400 text-sm">
+                        <i class="fa-solid fa-users-viewfinder"></i>
+                    </div>
+                    <div>
+                        <h4 data-i18n="about_feature_3_title" class="font-bold text-white mb-0.5">Komisi Affiliate</h4>
+                        <p data-i18n="about_feature_3_desc" class="text-[11px] text-textmuted leading-relaxed">Ajak teman menonton dan dapatkan bagi hasil komisi hingga 18% yang bisa ditarik ke saldo DANA Anda.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Help / Official Channel Box -->
+            <div class="p-3.5 rounded-2xl bg-gradient-to-r from-accent/15 via-slate-900 to-transparent border border-accent/20">
+                <div class="flex items-center gap-2.5 mb-1.5">
+                    <i class="fa-brands fa-telegram text-accent text-base"></i>
+                    <h4 data-i18n="about_help_title" class="font-bold text-white text-xs">Bantuan & Komunitas</h4>
+                </div>
+                <p data-i18n="about_help_desc" class="text-[11px] text-textmuted mb-3 leading-relaxed">Bergabunglah dengan channel & grup resmi Telegram kami untuk info episode terbaru dan bantuan.</p>
+                <a href="https://t.me/DramaBotGroup" target="_blank" data-i18n="btn_join_channel" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-accent text-darkbg font-bold text-[11px] hover:bg-accentdark transition-colors shadow-md">
+                    <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                    Buka Channel Resmi
+                </a>
+            </div>
+        </div>
+
+        <!-- Footer Button -->
+        <div class="p-4 border-t border-white/5 bg-slate-900/30">
+            <button onclick="closeAboutModal()" data-i18n="got_it" class="w-full py-3 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-sm transition-colors">
+                Saya Mengerti
+            </button>
+        </div>
+    </div>
+</div>
+

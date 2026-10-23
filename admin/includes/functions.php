@@ -429,7 +429,7 @@ function getRecentVipPurchases($limit = 50, $filter = 'all', $search = '') {
                 $params[':st'] = strtolower($filter);
             }
 
-            $sql = "SELECT vp.*, u.username, u.first_name, u.telegram_user_id, p.name as plan_name, qp.gateway_ref_id 
+            $sql = "SELECT vp.*, u.username, u.first_name, u.telegram_user_id, p.name as plan_name, p.duration_days, qp.gateway_ref_id, qp.gateway_name, qp.gateway_status, qp.qris_image_url, qp.expired_at 
                     FROM vip_purchases vp
                     JOIN users u ON vp.user_id = u.id
                     LEFT JOIN vip_plans p ON vp.plan_id = p.id
@@ -639,9 +639,49 @@ function manageUserAction($action, $userId, $extra = []) {
 }
 
 /**
- * Mengambil daftar seluruh Pelanggan Telegram
+ * Menghitung total seluruh Pelanggan Telegram berdasarkan filter & pencarian untuk pagination
  */
-function getTelegramUsersList($search = '', $filter = 'all', $limit = 100) {
+function getTelegramUsersTotal($search = '', $filter = 'all') {
+    $db = getDb();
+    if ($db) {
+        try {
+            $where = [];
+            $params = [];
+
+            if (!empty($search)) {
+                $where[] = "(username LIKE :s OR first_name LIKE :s OR last_name LIKE :s OR telegram_user_id LIKE :s)";
+                $params[':s'] = "%$search%";
+            }
+
+            if ($filter === 'vip') {
+                $where[] = "vip_until IS NOT NULL AND vip_until > NOW()";
+            } elseif ($filter === 'regular') {
+                $where[] = "(vip_until IS NULL OR vip_until <= NOW()) AND is_banned = 0";
+            } elseif ($filter === 'affiliate') {
+                $where[] = "(is_affiliate = 1 OR coin_balance > 0)";
+            } elseif ($filter === 'banned') {
+                $where[] = "is_banned = 1";
+            }
+
+            $sql = "SELECT COUNT(*) FROM users";
+            if (!empty($where)) {
+                $sql .= " WHERE " . implode(' AND ', $where);
+            }
+
+            $stmt = $db->prepare($sql);
+            $stmt->execute($params);
+            return (int)$stmt->fetchColumn();
+        } catch (Exception $e) {
+            return 0;
+        }
+    }
+    return 7;
+}
+
+/**
+ * Mengambil daftar seluruh Pelanggan Telegram dengan pagination
+ */
+function getTelegramUsersList($search = '', $filter = 'all', $limit = 15, $offset = 0) {
     $db = getDb();
     if ($db) {
         try {
@@ -667,7 +707,7 @@ function getTelegramUsersList($search = '', $filter = 'all', $limit = 100) {
             if (!empty($where)) {
                 $sql .= " WHERE " . implode(' AND ', $where);
             }
-            $sql .= " ORDER BY created_at DESC LIMIT " . (int)$limit;
+            $sql .= " ORDER BY created_at DESC LIMIT " . (int)$limit . " OFFSET " . (int)$offset;
 
             $stmt = $db->prepare($sql);
             $stmt->execute($params);
@@ -1513,3 +1553,216 @@ function processFilmRequest($id, $action, $adminNotes = '', $linkedDramaId = nul
         return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
     }
 }
+
+/**
+ * Mengambil daftar notifikasi sistem terkini untuk Admin
+ * Menggabungkan request film baru, pembayaran VIP baru, penarikan affiliate, dan user baru.
+ * 
+ * @param int $limit
+ * @return array ['items' => array, 'unreadCount' => int]
+ */
+function getAdminNotifications($limit = 8) {
+    global $pdo;
+    $isSuper = isSuperAdmin();
+    $items = [];
+    $unreadCount = 0;
+
+    if (!$pdo) {
+        // Fallback demo data jika database offline
+        return [
+            'items' => [
+                [
+                    'type' => 'request',
+                    'title' => 'Request Film Menunggu',
+                    'desc' => '@penonton me-request film "Queen of Tears"',
+                    'time' => date('Y-m-d H:i:s', strtotime('-15 minutes')),
+                    'icon' => 'fas fa-inbox',
+                    'icon_color' => 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+                    'link' => 'index.php?page=requests',
+                    'unread' => true
+                ],
+                [
+                    'type' => 'vip',
+                    'title' => 'Pembayaran VIP Berhasil',
+                    'desc' => '@budi_santoso - VIP 30 Hari (Rp 35.000)',
+                    'time' => date('Y-m-d H:i:s', strtotime('-1 hour')),
+                    'icon' => 'fas fa-crown',
+                    'icon_color' => 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+                    'link' => 'index.php?page=vip',
+                    'unread' => true
+                ]
+            ],
+            'unreadCount' => 2
+        ];
+    }
+
+    try {
+        // 1. Request Film dari Penonton
+        $stmt = $pdo->query("
+            SELECT r.id, r.requested_title, r.status, r.created_at, u.username, u.first_name
+            FROM film_requests r
+            LEFT JOIN users u ON r.user_id = u.id
+            ORDER BY (r.status = 'pending') DESC, r.created_at DESC
+            LIMIT 5
+        ");
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $isPending = ($row['status'] === 'pending');
+            if ($isPending) $unreadCount++;
+            $name = !empty($row['username']) ? '@' . $row['username'] : (!empty($row['first_name']) ? $row['first_name'] : 'Penonton');
+            $items[] = [
+                'type' => 'request',
+                'title' => $isPending ? 'Request Film Menunggu' : 'Request: ' . ucfirst($row['status']),
+                'desc' => $name . ' me-request "' . htmlspecialchars($row['requested_title']) . '"',
+                'time' => $row['created_at'],
+                'icon' => 'fas fa-inbox',
+                'icon_color' => $isPending ? 'text-amber-400 bg-amber-500/10 border-amber-500/20' : 'text-slate-400 bg-slate-800 border-white/5',
+                'link' => 'index.php?page=requests',
+                'unread' => $isPending
+            ];
+        }
+
+        // 2. Transaksi VIP & QRIS (Bagi Super Admin)
+        if ($isSuper) {
+            $stmt = $pdo->query("
+                SELECT p.id, p.amount, p.status, p.created_at, p.paid_at, u.username, u.first_name, vp.name as plan_name
+                FROM vip_purchases p
+                LEFT JOIN users u ON p.user_id = u.id
+                LEFT JOIN vip_plans vp ON p.plan_id = vp.id
+                ORDER BY p.created_at DESC
+                LIMIT 5
+            ");
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $isPaid = ($row['status'] === 'paid');
+                $name = !empty($row['username']) ? '@' . $row['username'] : (!empty($row['first_name']) ? $row['first_name'] : 'Pelanggan');
+                $time = !empty($row['paid_at']) ? $row['paid_at'] : $row['created_at'];
+                $isRecent = (time() - strtotime($time) < 86400 * 2);
+                if ($isPaid && $isRecent) $unreadCount++;
+                
+                $items[] = [
+                    'type' => 'vip',
+                    'title' => $isPaid ? 'Pembayaran VIP Sukses' : 'Transaksi VIP Pending',
+                    'desc' => $name . ' - ' . ($row['plan_name'] ?: 'VIP') . ' (' . formatRupiah($row['amount']) . ')',
+                    'time' => $time,
+                    'icon' => 'fas fa-crown',
+                    'icon_color' => $isPaid ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+                    'link' => 'index.php?page=vip',
+                    'unread' => $isPaid && $isRecent
+                ];
+            }
+
+            // 3. Pengajuan Penarikan Saldo Affiliate (Affiliate Withdrawals)
+            $stmt = $pdo->query("
+                SELECT w.id, w.amount, w.status, w.requested_at, u.username, u.first_name
+                FROM affiliate_withdrawals w
+                LEFT JOIN users u ON w.user_id = u.id
+                WHERE w.status = 'pending'
+                ORDER BY w.requested_at DESC
+                LIMIT 3
+            ");
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $unreadCount++;
+                $name = !empty($row['username']) ? '@' . $row['username'] : (!empty($row['first_name']) ? $row['first_name'] : 'Affiliate');
+                $items[] = [
+                    'type' => 'withdraw',
+                    'title' => 'Pengajuan Penarikan Saldo',
+                    'desc' => $name . ' menarik ' . formatRupiah($row['amount']),
+                    'time' => $row['requested_at'],
+                    'icon' => 'fas fa-money-bill-transfer',
+                    'icon_color' => 'text-sky-400 bg-sky-500/10 border-sky-500/20',
+                    'link' => 'index.php?page=affiliate',
+                    'unread' => true
+                ];
+            }
+        }
+
+        // 4. Pelanggan Baru Terdaftar
+        $stmt = $pdo->query("
+            SELECT id, username, first_name, created_at
+            FROM users
+            ORDER BY created_at DESC
+            LIMIT 3
+        ");
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $name = !empty($row['username']) ? '@' . $row['username'] : (!empty($row['first_name']) ? $row['first_name'] : 'User');
+            $items[] = [
+                'type' => 'user',
+                'title' => 'Pelanggan Baru',
+                'desc' => $name . ' bergabung ke bot streaming',
+                'time' => $row['created_at'],
+                'icon' => 'fas fa-user-plus',
+                'icon_color' => 'text-[#00D0B6] bg-[#00D0B6]/10 border-[#00D0B6]/20',
+                'link' => 'index.php?page=users',
+                'unread' => false
+            ];
+        }
+
+        // Urutkan seluruh notifikasi berdasarkan waktu terbaru
+        usort($items, function($a, $b) {
+            return strtotime($b['time']) - strtotime($a['time']);
+        });
+
+        $items = array_slice($items, 0, $limit);
+
+    } catch (Exception $e) {
+        // Safe fallback
+    }
+
+    return [
+        'items' => $items,
+        'unreadCount' => $unreadCount
+    ];
+}
+
+/**
+ * Mengambil kata kunci pencarian paling populer dari search_logs penonton
+ */
+function getTopSearchKeywords($limit = 8) {
+    $db = getDb();
+    if ($db) {
+        try {
+            $sql = "
+                SELECT query_text, 
+                       COUNT(*) as total_searches, 
+                       ROUND(AVG(COALESCE(result_count, 0))) as avg_results,
+                       MAX(created_at) as last_searched_at
+                FROM search_logs
+                GROUP BY query_text
+                ORDER BY total_searches DESC, last_searched_at DESC
+                LIMIT :lim
+            ";
+            $stmt = $db->prepare($sql);
+            $stmt->bindValue(':lim', (int)$limit, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            // fallback
+        }
+    }
+    return [];
+}
+
+/**
+ * Mengambil riwayat log pencarian penonton terbaru
+ */
+function getRecentSearchLogs($limit = 10) {
+    $db = getDb();
+    if ($db) {
+        try {
+            $sql = "
+                SELECT sl.*, u.first_name, u.last_name, u.username, u.telegram_user_id
+                FROM search_logs sl
+                LEFT JOIN users u ON sl.user_id = u.id
+                ORDER BY sl.created_at DESC
+                LIMIT :lim
+            ";
+            $stmt = $db->prepare($sql);
+            $stmt->bindValue(':lim', (int)$limit, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Exception $e) {
+            // fallback
+        }
+    }
+    return [];
+}
+

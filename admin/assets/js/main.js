@@ -74,3 +74,35 @@ document.addEventListener('DOMContentLoaded', () => {
     setupTableSearch('txSearchInput', 'txTableBody');
     setupTableSearch('dramaSearchInput', 'dramaTableBody');
 });
+
+// ==========================================
+// NOTIFIKASI DROPDOWN TOGGLE & CLICK OUTSIDE
+// ==========================================
+function toggleNotifDropdown(event) {
+    if (event) event.stopPropagation();
+    const dropdown = document.getElementById('notifDropdown');
+    if (dropdown) {
+        dropdown.classList.toggle('hidden');
+    }
+}
+
+// Tutup dropdown notifikasi saat klik di luar area atau tekan tombol ESC
+document.addEventListener('click', function (e) {
+    const notifContainer = document.getElementById('notifContainer');
+    const notifDropdown = document.getElementById('notifDropdown');
+    if (notifDropdown && !notifDropdown.classList.contains('hidden')) {
+        if (notifContainer && !notifContainer.contains(e.target)) {
+            notifDropdown.classList.add('hidden');
+        }
+    }
+});
+
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+        const notifDropdown = document.getElementById('notifDropdown');
+        if (notifDropdown && !notifDropdown.classList.contains('hidden')) {
+            notifDropdown.classList.add('hidden');
+        }
+    }
+});
+

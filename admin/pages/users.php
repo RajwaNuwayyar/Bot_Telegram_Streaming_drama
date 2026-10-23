@@ -24,10 +24,35 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['user_action']
 
 $filter = isset($_GET['filter']) ? trim($_GET['filter']) : 'all';
 $search = isset($_GET['search']) ? trim($_GET['search']) : '';
+$pageNumber = isset($_GET['p']) ? max(1, (int)$_GET['p']) : 1;
+$perPage = 15;
 
-// Ambil data pelanggan riil dari database
-$usersList = getTelegramUsersList($search, $filter);
+// Hitung total data sesuai filter & pencarian untuk pagination
+$totalFilteredUsers = getTelegramUsersTotal($search, $filter);
+$totalPages = max(1, (int)ceil($totalFilteredUsers / $perPage));
+if ($pageNumber > $totalPages) {
+    $pageNumber = $totalPages;
+}
+$offset = ($pageNumber - 1) * $perPage;
+
+// Ambil data pelanggan riil dari database sesuai halaman & offset
+$usersList = getTelegramUsersList($search, $filter, $perPage, $offset);
 $counts = getUserTabCounts();
+
+// Helper untuk menyusun URL pagination yang menjaga parameter filter & search
+$buildPageUrl = function($targetPage) use ($filter, $search) {
+    $params = ['page' => 'users'];
+    if ($filter !== 'all') {
+        $params['filter'] = $filter;
+    }
+    if (!empty($search)) {
+        $params['search'] = $search;
+    }
+    if ($targetPage > 1) {
+        $params['p'] = $targetPage;
+    }
+    return 'index.php?' . http_build_query($params);
+};
 ?>
 
 <div class="space-y-6">
@@ -98,7 +123,12 @@ $counts = getUserTabCounts();
                     <input type="hidden" name="page" value="users">
                     <input type="hidden" name="filter" value="<?= htmlspecialchars($filter); ?>">
                     <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i>
-                    <input type="text" name="search" id="userSearchInput" value="<?= htmlspecialchars($search); ?>" placeholder="Cari Telegram ID, Username, atau Nama..." class="w-full pl-11 pr-4 py-2.5 rounded-xl bg-slate-900/80 border border-white/10 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#00D0B6] transition">
+                    <input type="text" name="search" id="userSearchInput" value="<?= htmlspecialchars($search); ?>" placeholder="Cari Telegram ID, Username, atau Nama..." class="w-full pl-11 <?= !empty($search) ? 'pr-10' : 'pr-4'; ?> py-2.5 rounded-xl bg-slate-900/80 border border-white/10 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#00D0B6] transition">
+                    <?php if (!empty($search)): ?>
+                    <a href="index.php?page=users&filter=<?= urlencode($filter); ?>" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition" title="Hapus Pencarian">
+                        <i class="fas fa-times-circle"></i>
+                    </a>
+                    <?php endif; ?>
                 </form>
 
                 <!-- Action Button -->
@@ -287,12 +317,71 @@ $counts = getUserTabCounts();
         </div>
 
         <!-- Pagination / Summary Footnote -->
+        <?php
+        $fromItem = $totalFilteredUsers > 0 ? ($offset + 1) : 0;
+        $toItem = min($offset + count($usersList), $totalFilteredUsers);
+        ?>
         <div class="p-4 border-t border-white/5 bg-slate-900/40 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
-            <p>Menampilkan <?= count($usersList); ?> dari <?= $counts['all']; ?> total pelanggan terdata di database.</p>
-            <div class="flex items-center gap-1">
-                <button class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition disabled:opacity-50" disabled>Sebelumnya</button>
-                <button class="px-3 py-1.5 rounded-lg bg-[#00D0B6] text-slate-950 font-bold">1</button>
-                <button class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition disabled:opacity-50" disabled>Berikutnya</button>
+            <div>
+                Menampilkan <strong class="text-white"><?= $fromItem; ?> - <?= $toItem; ?></strong> dari <strong class="text-white"><?= number_format($totalFilteredUsers); ?></strong> pelanggan
+                <?php if (!empty($search) || $filter !== 'all'): ?>
+                    <span class="text-slate-500">(dari total <?= number_format($counts['all']); ?> terdaftar)</span>
+                <?php endif; ?>
+            </div>
+
+            <div class="flex items-center gap-1.5 flex-wrap justify-center">
+                <!-- Tombol Sebelumnya -->
+                <?php if ($pageNumber > 1): ?>
+                <a href="<?= htmlspecialchars($buildPageUrl($pageNumber - 1)); ?>" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition flex items-center gap-1.5 font-medium border border-white/5">
+                    <i class="fas fa-chevron-left text-[10px]"></i>
+                    <span>Sebelumnya</span>
+                </a>
+                <?php else: ?>
+                <span class="px-3 py-1.5 rounded-lg bg-slate-800/40 text-slate-600 cursor-not-allowed flex items-center gap-1.5 font-medium border border-white/5 select-none">
+                    <i class="fas fa-chevron-left text-[10px]"></i>
+                    <span>Sebelumnya</span>
+                </span>
+                <?php endif; ?>
+
+                <!-- Tombol Angka Halaman -->
+                <?php
+                $startPage = max(1, $pageNumber - 2);
+                $endPage = min($totalPages, $pageNumber + 2);
+
+                if ($startPage > 1): ?>
+                    <a href="<?= htmlspecialchars($buildPageUrl(1)); ?>" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition flex items-center justify-center font-medium border border-white/5">1</a>
+                    <?php if ($startPage > 2): ?>
+                        <span class="px-1 text-slate-600 select-none">...</span>
+                    <?php endif; ?>
+                <?php endif; ?>
+
+                <?php for ($p = $startPage; $p <= $endPage; $p++): ?>
+                    <?php if ($p == $pageNumber): ?>
+                        <span class="w-8 h-8 rounded-lg bg-[#00D0B6] text-slate-950 font-bold flex items-center justify-center shadow-md shadow-[#00D0B6]/20 select-none"><?= $p; ?></span>
+                    <?php else: ?>
+                        <a href="<?= htmlspecialchars($buildPageUrl($p)); ?>" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition flex items-center justify-center font-medium border border-white/5"><?= $p; ?></a>
+                    <?php endif; ?>
+                <?php endfor; ?>
+
+                <?php if ($endPage < $totalPages): ?>
+                    <?php if ($endPage < $totalPages - 1): ?>
+                        <span class="px-1 text-slate-600 select-none">...</span>
+                    <?php endif; ?>
+                    <a href="<?= htmlspecialchars($buildPageUrl($totalPages)); ?>" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition flex items-center justify-center font-medium border border-white/5"><?= $totalPages; ?></a>
+                <?php endif; ?>
+
+                <!-- Tombol Berikutnya -->
+                <?php if ($pageNumber < $totalPages): ?>
+                <a href="<?= htmlspecialchars($buildPageUrl($pageNumber + 1)); ?>" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition flex items-center gap-1.5 font-medium border border-white/5">
+                    <span>Berikutnya</span>
+                    <i class="fas fa-chevron-right text-[10px]"></i>
+                </a>
+                <?php else: ?>
+                <span class="px-3 py-1.5 rounded-lg bg-slate-800/40 text-slate-600 cursor-not-allowed flex items-center gap-1.5 font-medium border border-white/5 select-none">
+                    <span>Berikutnya</span>
+                    <i class="fas fa-chevron-right text-[10px]"></i>
+                </span>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -526,4 +615,11 @@ function openToggleBanModal(userId, name, isBanned) {
     }
     openModal('toggleBanModal');
 }
+
+// Inisialisasi filter tabel real-time lokal jika script dimuat
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof setupTableSearch === 'function') {
+        setupTableSearch('userSearchInput', 'userTableBody');
+    }
+});
 </script>

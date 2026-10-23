@@ -14,6 +14,7 @@ $filter = isset($_GET['filter']) ? trim($_GET['filter']) : 'all';
 $dramas = getDramasCatalog($search, $filter);
 $stats = getDramaStats();
 $categories = getDramaCategoriesList();
+$topSearches = getTopSearchKeywords(6);
 
 // Ambil seluruh data episode per drama untuk modal instan
 $allEpisodes = [];
@@ -111,6 +112,31 @@ if (!empty($dramas)) {
             </button>
         </div>
     </div>
+
+    <!-- Tren Kata Kunci Pencarian Penonton (search_logs) -->
+    <?php if (!empty($topSearches)): ?>
+    <div class="p-3.5 rounded-xl bg-slate-900/60 border border-white/5 flex flex-wrap items-center gap-2 text-xs animate-fade-in">
+        <span class="text-slate-400 font-medium flex items-center gap-1.5 shrink-0">
+            <i class="fas fa-fire text-amber-400 text-xs"></i>
+            <span>Paling Dicari Penonton:</span>
+        </span>
+        <div class="flex flex-wrap items-center gap-1.5">
+            <?php foreach ($topSearches as $ts): 
+                $hasResults = ((int)$ts['avg_results'] > 0);
+            ?>
+            <a href="index.php?page=dramas&search=<?= urlencode($ts['query_text']); ?>" 
+               class="px-2.5 py-1 rounded-lg <?= $hasResults ? 'bg-slate-800 hover:bg-[#00D0B6]/20 hover:text-[#00D0B6] text-slate-300' : 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30'; ?> transition text-[11px] flex items-center gap-1.5"
+               title="<?= $hasResults ? 'Klik untuk memfilter katalog' : 'Pencarian ini belum memiliki judul di katalog! Klik untuk cek.'; ?>">
+                <span><?= htmlspecialchars($ts['query_text']); ?></span>
+                <span class="opacity-60 text-[10px]">(<?= $ts['total_searches']; ?>x)</span>
+                <?php if (!$hasResults): ?>
+                    <span class="text-[9px] px-1 py-0.5 rounded bg-amber-500/30 font-bold text-amber-200">Belum Ada</span>
+                <?php endif; ?>
+            </a>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <!-- Drama Cards Grid -->
     <div id="dramaGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">

@@ -1,16 +1,36 @@
 <?php
-require_once '../database/koneksi.php';
-require_once 'midtrans_config.php'; // Include config untuk mengambil Server Key
+require_once __DIR__ . '/../database/koneksi.php';
+require_once __DIR__ . '/midtrans_config.php'; // Include config untuk mengambil Server Key
 
 // Gunakan key dari config file
 $serverKey = $midtrans_server_key;
 
 // Tangkap data dari URL (GET) yang dikirim oleh Frontend
-$tg_user_id = isset($_GET['tg_user_id']) ? $_GET['tg_user_id'] : 123456789;
-$username = isset($_GET['username']) ? $_GET['username'] : 'dummy_user';
-$first_name = isset($_GET['first_name']) ? $_GET['first_name'] : 'User';
+$tg_user_id = isset($_GET['tg_user_id']) ? trim($_GET['tg_user_id']) : '';
+$username = isset($_GET['username']) ? trim($_GET['username']) : '';
+$first_name = isset($_GET['first_name']) ? trim($_GET['first_name']) : 'User';
+$plan_id = isset($_GET['plan_id']) ? (int)$_GET['plan_id'] : 0;
 
-$plan_id = isset($_GET['plan_id']) ? (int)$_GET['plan_id'] : 1;
+// KEAMANAN KETAT: Tolak transaksi jika tidak memiliki Telegram User ID yang sah
+if (empty($tg_user_id) || !is_numeric($tg_user_id) || (float)$tg_user_id <= 0 || $tg_user_id === '123456789' || $tg_user_id === 'dummy_user') {
+    header('Content-Type: application/json');
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Identitas Telegram tidak sah. Demi keamanan dan aktivasi akun otomatis, pembelian VIP hanya dapat dilakukan melalui bot Telegram resmi.'
+    ]);
+    exit;
+}
+
+if ($plan_id <= 0) {
+    header('Content-Type: application/json');
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Paket VIP tidak valid.'
+    ]);
+    exit;
+}
 
 try {
     // KEAMANAN: Ambil harga ASLI dari database berdasarkan plan_id
@@ -19,7 +39,13 @@ try {
     $planData = $cekPlan->fetch(PDO::FETCH_ASSOC);
 
     if (!$planData) {
-        die("Error: Paket VIP tidak valid atau tidak ditemukan.");
+        header('Content-Type: application/json');
+        http_response_code(404);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Paket VIP tidak valid atau tidak ditemukan di database.'
+        ]);
+        exit;
     }
     
     // Gunakan harga dari database, BUKAN dari input user (URL)

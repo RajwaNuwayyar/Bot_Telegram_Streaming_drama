@@ -22,6 +22,45 @@ if ($pdo && $cat !== 'all' && !empty($cat)) {
 
 $dramas = ($pdo) ? getDramas($pdo, 1000, $category_id, $q) : [];
 
+// Log pencarian ke tabel search_logs jika ada kata kunci pencarian
+$tgUserIdParam = isset($_GET['tg_user_id']) ? trim($_GET['tg_user_id']) : '';
+if (!empty($q) && $pdo) {
+    try {
+        $cleanQ = mb_substr($q, 0, 255);
+        if (mb_strlen($cleanQ) >= 2) {
+            $now = time();
+            $lastQ = $_SESSION['last_logged_search_q'] ?? '';
+            $lastTime = $_SESSION['last_logged_search_time'] ?? 0;
+
+            // Debounce: Hindari duplicate insert jika query sama dalam waktu 8 detik
+            if ($cleanQ !== $lastQ || ($now - $lastTime) >= 8) {
+                // Resolusi user_id dari database
+                $userId = null;
+                $effectiveTgId = !empty($_SESSION['telegram_user_id']) ? $_SESSION['telegram_user_id'] : $tgUserIdParam;
+                if (!empty($effectiveTgId) && is_numeric($effectiveTgId)) {
+                    $uStmt = $pdo->prepare("SELECT id FROM users WHERE telegram_user_id = ? LIMIT 1");
+                    $uStmt->execute([$effectiveTgId]);
+                    $foundUserId = $uStmt->fetchColumn();
+                    if ($foundUserId) {
+                        $userId = (int)$foundUserId;
+                    }
+                }
+
+                $logStmt = $pdo->prepare("
+                    INSERT INTO search_logs (user_id, query_text, result_count, created_at)
+                    VALUES (?, ?, ?, NOW())
+                ");
+                $logStmt->execute([$userId, $cleanQ, count($dramas)]);
+
+                $_SESSION['last_logged_search_q'] = $cleanQ;
+                $_SESSION['last_logged_search_time'] = $now;
+            }
+        }
+    } catch (Exception $e) {
+        error_log("Search log error: " . $e->getMessage());
+    }
+}
+
 if (empty($dramas)) {
     echo '<div class="col-span-2 py-16 flex flex-col items-center justify-center text-center">';
     echo '    <div class="w-16 h-16 rounded-full bg-cardbg border border-white/10 flex items-center justify-center mb-3 text-textmuted">';
@@ -31,6 +70,16 @@ if (empty($dramas)) {
     echo '    <p class="text-xs text-textmuted">Coba cari dengan kata kunci lain.</p>';
     echo '</div>';
     exit;
+}
+
+// Ambil status favorit user untuk penandaan kartu
+$userFavoriteIds = [];
+$effectiveTgId = !empty($_SESSION['telegram_user_id']) ? $_SESSION['telegram_user_id'] : $tgUserIdParam;
+if (!empty($effectiveTgId) && $pdo) {
+    $u = getUserByTelegramId($pdo, $effectiveTgId);
+    if ($u) {
+        $userFavoriteIds = getUserFavoriteIds($pdo, $u['id']);
+    }
 }
 
 foreach ($dramas as $idx => $d) {
@@ -63,9 +112,14 @@ foreach ($dramas as $idx => $d) {
                 </span>
             </div>
 
-            <div class="absolute top-2.5 right-2.5 px-1.5 py-0.5 rounded-md bg-darkbg/80 backdrop-blur-md text-[10px] font-bold text-yellow-400 flex items-center gap-1 border border-white/10 shadow-sm">
-                <i class="fa-solid fa-star text-[9px]"></i> 4.8
-            </div>
+            <!-- Heart / Favorite Button on Top Right -->
+            <?php $isFav = in_array((int)$d['id'], $userFavoriteIds); ?>
+            <button type="button" 
+                    onclick="event.stopPropagation(); toggleFavorite(<?= $d['id']; ?>, this)" 
+                    class="fav-btn absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-darkbg/80 backdrop-blur-md flex items-center justify-center border transition-all active:scale-75 z-20 <?= $isFav ? 'text-rose-500 border-rose-500/40 shadow-sm shadow-rose-500/20' : 'border-white/10 text-white/70 hover:text-rose-500 hover:border-rose-500/30'; ?>"
+                    title="Simpan ke Favorit">
+                <i class="<?= $isFav ? 'fa-solid' : 'fa-regular'; ?> fa-heart text-xs"></i>
+            </button>
 
             <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-darkbg/40 backdrop-blur-[2px]">
                 <div class="w-11 h-11 rounded-full bg-accent text-darkbg flex items-center justify-center shadow-xl transform scale-90 group-hover:scale-100 transition-transform">

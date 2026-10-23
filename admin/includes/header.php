@@ -6,6 +6,7 @@ require_once __DIR__ . '/../includes/auth.php';
 // Ambil info admin
 $adminInfo = getAdminInfo();
 $isDbConnected = isDbConnected();
+$notifData = getAdminNotifications(8);
 
 // Halaman aktif
 $currentPage = isset($_GET['page']) ? $_GET['page'] : 'overview';
@@ -112,12 +113,81 @@ $currentPage = isset($_GET['page']) ? $_GET['page'] : 'overview';
                     <span>Lihat Mini App</span>
                 </a>
 
-                <!-- Notification Bell -->
-                <div class="relative">
-                    <button class="relative p-2.5 rounded-xl bg-slate-800/60 text-slate-400 hover:text-white hover:bg-slate-700/60 transition border border-white/5">
+                <!-- Notification Bell with Interactive Dropdown -->
+                <div class="relative" id="notifContainer">
+                    <button id="notifBellBtn" 
+                            onclick="toggleNotifDropdown(event)" 
+                            type="button"
+                            class="relative p-2.5 rounded-xl bg-slate-800/60 text-slate-400 hover:text-white hover:bg-slate-700/60 transition border border-white/5 focus:outline-none"
+                            title="Notifikasi Aktivitas">
                         <i class="fas fa-bell text-sm"></i>
-                        <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#00D0B6]"></span>
+                        <?php if ($notifData['unreadCount'] > 0): ?>
+                            <span class="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white font-extrabold text-[10px] flex items-center justify-center ring-2 ring-slate-900 shadow-md">
+                                <?= $notifData['unreadCount'] > 9 ? '9+' : $notifData['unreadCount']; ?>
+                            </span>
+                        <?php else: ?>
+                            <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-slate-600"></span>
+                        <?php endif; ?>
                     </button>
+
+                    <!-- Dropdown Panel -->
+                    <div id="notifDropdown" class="hidden absolute right-0 mt-3 w-80 sm:w-96 bg-[#0E1526]/95 border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden backdrop-blur-xl animate-in fade-in duration-150">
+                        <!-- Dropdown Header -->
+                        <div class="px-4 py-3 border-b border-white/5 flex items-center justify-between bg-slate-900/60">
+                            <div class="flex items-center gap-2">
+                                <i class="fas fa-bell text-xs text-[#00D0B6]"></i>
+                                <span class="text-xs font-bold text-white">Notifikasi Aktivitas</span>
+                            </div>
+                            <?php if ($notifData['unreadCount'] > 0): ?>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                                    <?= $notifData['unreadCount']; ?> baru
+                                </span>
+                            <?php else: ?>
+                                <span class="text-[10px] text-slate-500">Semua dibaca</span>
+                            <?php endif; ?>
+                        </div>
+
+                        <!-- Dropdown Items List -->
+                        <div class="max-h-80 overflow-y-auto divide-y divide-white/5">
+                            <?php if (!empty($notifData['items'])): ?>
+                                <?php foreach ($notifData['items'] as $item): ?>
+                                    <a href="<?= htmlspecialchars($item['link']); ?>" class="flex items-start gap-3 p-3.5 hover:bg-slate-800/60 transition group <?= $item['unread'] ? 'bg-slate-900/40' : ''; ?>">
+                                        <div class="w-8 h-8 rounded-xl shrink-0 flex items-center justify-center text-xs border <?= $item['icon_color']; ?>">
+                                            <i class="<?= $item['icon']; ?>"></i>
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <div class="flex items-center justify-between gap-1 mb-0.5">
+                                                <p class="text-xs font-bold truncate <?= $item['unread'] ? 'text-white' : 'text-slate-300'; ?> group-hover:text-[#00D0B6] transition">
+                                                    <?= htmlspecialchars($item['title']); ?>
+                                                </p>
+                                                <?php if ($item['unread']): ?>
+                                                    <span class="w-2 h-2 rounded-full bg-[#00D0B6] shrink-0"></span>
+                                                <?php endif; ?>
+                                            </div>
+                                            <p class="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
+                                                <?= $item['desc']; ?>
+                                            </p>
+                                            <span class="text-[10px] text-slate-500 mt-1 block">
+                                                <?= timeAgo($item['time']); ?>
+                                            </span>
+                                        </div>
+                                    </a>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <div class="py-8 text-center text-slate-500 text-xs">
+                                    <i class="far fa-bell-slash text-2xl mb-2 opacity-50 block"></i>
+                                    <span>Belum ada notifikasi terkini.</span>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+
+                        <!-- Dropdown Footer -->
+                        <div class="p-2.5 border-t border-white/5 bg-slate-900/40 text-center">
+                            <a href="index.php?page=requests" class="text-[11px] font-semibold text-[#00D0B6] hover:text-[#00D0B6]/80 transition">
+                                Cek Antrean Request Film &rarr;
+                            </a>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Admin Profile Dropdown Pill -->
