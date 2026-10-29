@@ -113,26 +113,31 @@ Tingkatkan akun Anda ke status VIP untuk membuka seluruh episode dari drama ini 
 
 // PaymentInstructionMessage pesan caption foto QRIS
 func PaymentInstructionMessage(tx *database.Transaction) string {
+	linkQRIS := ""
+	if tx.QRISURL != "" {
+		linkQRIS = fmt.Sprintf("\n🔗 *Link Gambar QRIS:*\n%s\n━━━━━━━━━━━━━━━━━━━━━━━━\n", tx.QRISURL)
+	}
+
 	return fmt.Sprintf(`💳 *TAGIHAN PEMBAYARAN QRIS*
 ━━━━━━━━━━━━━━━━━━━━━━━━
 🆔 *ID Transaksi:* `+"`%s`"+`
 📦 *Paket:* %s
 💰 *Total Bayar:* *Rp %s*
 ⏳ *Batas Waktu:* %s WIB (15 Menit)
-━━━━━━━━━━━━━━━━━━━━━━━━
-
-*Langkah Pembayaran:*
-1. Simpan/Screenshot gambar QRIS di atas.
+━━━━━━━━━━━━━━━━━━━━━━━━%s
+*Langkah Pembayaran & Simpan QRIS:*
+1. Ketuk foto QRIS di atas, lalu pilih *Simpan ke Galeri* (atau salin link QRIS di atas).
 2. Buka BCA, Mandiri, BRI, BNI, GoPay, OVO, DANA, atau ShopeePay.
-3. Pilih fitur *Scan / Bayar QRIS* lalu unggah gambar QR ini.
+3. Pilih fitur *Scan / Bayar QRIS* lalu unggah gambar QR ini dari galeri.
 4. Periksa nama merchant: *DRAMABOT VIP* & nominal: *Rp %s*.
 5. Selesaikan pembayaran.
 
-Setelah bayar, bot akan mengaktifkan VIP Anda secara otomatis! 🚀`,
+Setelah pembayaran berhasil, status VIP Anda akan otomatis aktif! 🚀`,
 		tx.TrxCode,
 		tx.PlanName,
 		formatRupiah(tx.Amount),
 		tx.ExpiredAt.Format("15:04"),
+		linkQRIS,
 		formatRupiah(tx.Amount),
 	)
 }

@@ -105,6 +105,7 @@ type Transaction struct {
 	PlanName    string            `json:"plan_name"`
 	Amount      float64           `json:"amount"`
 	QRISString  string            `json:"qris_string"`
+	QRISURL     string            `json:"qris_url"`
 	Status      TransactionStatus `json:"status"`
 	CreatedAt   time.Time         `json:"created_at"`
 	PaidAt      *time.Time        `json:"paid_at,omitempty"`

@@ -36,14 +36,27 @@
                 </div>
             </div>
 
-            <!-- Kode TRX Badge (Di luar kotak QRIS) -->
-            <div class="flex justify-center mb-4">
-                <div class="inline-flex items-center gap-2 px-3.5 py-1.5 bg-darkbg/80 border border-white/10 rounded-full text-xs font-mono text-gray-200 font-semibold shadow-inner">
-                    <span class="text-textmuted text-[10px]">TRX:</span>
-                    <span id="modal-trx-code">TRX-849201</span>
-                    <button onclick="copyTrxCode()" class="text-accent hover:text-white transition-colors ml-1" title="Salin Kode">
-                        <i class="fa-regular fa-copy"></i>
+            <!-- Tombol Aksi QRIS: Tampilkan di Chat Bot & Salin Link QRIS -->
+            <div class="space-y-2 mb-4">
+                <div class="grid grid-cols-2 gap-2">
+                    <!-- Tombol Tampilkan di Chat Bot untuk Simpan/Download -->
+                    <button type="button" id="btn-send-to-chat" onclick="sendQrisToChat()" class="w-full py-2.5 px-3 rounded-xl bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/40 text-sky-400 hover:text-white transition-all font-semibold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95">
+                        <i id="send-chat-icon" class="fa-brands fa-telegram text-sm"></i>
+                        <span id="send-chat-text">Tampilkan di Chat</span>
                     </button>
+
+                    <!-- Tombol Salin Link QRIS (Menggantikan Salin Kode TRX) -->
+                    <button type="button" onclick="copyQrisLink()" class="w-full py-2.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-200 hover:text-white transition-all font-semibold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95">
+                        <i id="copy-link-icon" class="fa-regular fa-copy text-xs"></i>
+                        <span id="copy-link-text">Salin Link QRIS</span>
+                    </button>
+                </div>
+
+                <!-- Info ID Transaksi (Statis untuk referensi) -->
+                <div class="text-center">
+                    <span class="text-[11px] font-mono text-textmuted">
+                        ID Transaksi: <strong id="modal-trx-code" class="text-gray-300 font-medium select-all">-</strong>
+                    </span>
                 </div>
             </div>
 
@@ -79,7 +92,7 @@
                 </div>
                 <div class="flex items-start gap-2 text-[11px] text-textmuted">
                     <span class="w-4 h-4 rounded-full bg-accent/20 text-accent font-bold text-[10px] flex items-center justify-center shrink-0">2</span>
-                    <span>Pilih menu <strong>Scan / Bayar QRIS</strong> dan arahkan kamera ke gambar QR di atas.</span>
+                    <span>Pilih menu <strong>Scan / Bayar QRIS</strong> di e-wallet/bank, lalu scan QR di atas atau gunakan tombol <strong>Tampilkan di Chat</strong> untuk menyimpan gambar QRIS ke galeri HP.</span>
                 </div>
                 <div class="flex items-start gap-2 text-[11px] text-textmuted">
                     <span class="w-4 h-4 rounded-full bg-accent/20 text-accent font-bold text-[10px] flex items-center justify-center shrink-0">3</span>
@@ -148,6 +161,7 @@
 let qrisTimerInterval = null;
 let qrisPollingInterval = null;
 let currentTrxCode = '';
+let currentQrisUrl = '';
 let currentPlanName = '';
 let currentPlanPrice = 0;
 let currentDurationDays = 30;
@@ -164,9 +178,6 @@ function processPayment(planId, amount) {
     };
     const p = plans[planId] || { name: 'VIP Plan', days: 30 };
     
-    // Tampilkan loading state atau modal placeholder jika diinginkan
-    // (Bisa dikembangkan lebih lanjut)
-
     const user = getTelegramUser();
     if (!user || !user.id) {
         openTelegramRequiredModal();
@@ -195,12 +206,17 @@ function openQrisModal(planName, price, planId, durationDays, orderId, qrUrl) {
     currentPlanPrice = price;
     currentDurationDays = durationDays;
     currentTrxCode = orderId;
+    currentQrisUrl = qrUrl;
 
     // Set UI Texts
     document.getElementById('modal-plan-name').textContent = planName;
     document.getElementById('modal-plan-price').textContent = 'Rp ' + Number(price).toLocaleString('id-ID');
     document.getElementById('modal-trx-code').textContent = currentTrxCode;
     
+    // Reset Copy Link & Send Chat Button State
+    resetCopyLinkButton();
+    resetSendChatButton();
+
     // Set Image QR
     document.getElementById('qris-image').src = qrUrl;
 
@@ -223,12 +239,133 @@ function closeQrisModal() {
     if (qrisPollingInterval) clearInterval(qrisPollingInterval);
 }
 
-function copyTrxCode() {
-    navigator.clipboard.writeText(currentTrxCode).then(() => {
-        alert('Kode Transaksi ' + currentTrxCode + ' berhasil disalin!');
-    }).catch(() => {
-        alert('Kode TRX: ' + currentTrxCode);
-    });
+function copyQrisLink() {
+    if (!currentQrisUrl) {
+        alert('Tautan QRIS belum tersedia.');
+        return;
+    }
+
+    const textToCopy = currentQrisUrl;
+    
+    // Fungsi fallback clipboard untuk browser webview / mobile
+    const copyFallback = (text) => {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        let successful = false;
+        try {
+            successful = document.execCommand('copy');
+        } catch (err) {
+            successful = false;
+        }
+        document.body.removeChild(textArea);
+        return successful;
+    };
+
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            showCopyLinkSuccess();
+        }).catch(() => {
+            if (copyFallback(textToCopy)) {
+                showCopyLinkSuccess();
+            } else {
+                prompt('Salin link QRIS berikut:', textToCopy);
+            }
+        });
+    } else {
+        if (copyFallback(textToCopy)) {
+            showCopyLinkSuccess();
+        } else {
+            prompt('Salin link QRIS berikut:', textToCopy);
+        }
+    }
+}
+
+function showCopyLinkSuccess() {
+    const textElem = document.getElementById('copy-link-text');
+    const iconElem = document.getElementById('copy-link-icon');
+    if (textElem && iconElem) {
+        textElem.textContent = 'Link Tersalin!';
+        iconElem.className = 'fa-solid fa-check text-xs text-accent';
+        setTimeout(resetCopyLinkButton, 2500);
+    }
+}
+
+function resetCopyLinkButton() {
+    const textElem = document.getElementById('copy-link-text');
+    const iconElem = document.getElementById('copy-link-icon');
+    if (textElem && iconElem) {
+        textElem.textContent = 'Salin Link QRIS';
+        iconElem.className = 'fa-regular fa-copy text-xs';
+    }
+}
+
+function sendQrisToChat() {
+    if (!currentTrxCode) {
+        alert('Data transaksi belum tersedia.');
+        return;
+    }
+
+    const user = getTelegramUser();
+    const userId = (user && user.id) ? user.id : '';
+
+    const btn = document.getElementById('btn-send-to-chat');
+    const txt = document.getElementById('send-chat-text');
+    const ico = document.getElementById('send-chat-icon');
+
+    if (btn) btn.disabled = true;
+    if (txt) txt.textContent = 'Mengirim...';
+    if (ico) ico.className = 'fa-solid fa-spinner fa-spin text-sm';
+
+    const url = `../payment/send_to_chat.php?order_id=${encodeURIComponent(currentTrxCode)}&tg_user_id=${encodeURIComponent(userId)}`;
+
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                if (txt) txt.textContent = 'Terkirim ke Chat!';
+                if (ico) ico.className = 'fa-solid fa-check text-emerald-400 text-sm';
+                
+                setTimeout(() => {
+                    const openBot = confirm('✅ Transaksi & Gambar QRIS berhasil dikirim ke ruang chat bot Telegram Anda!\n\nApakah Anda ingin membuka ruang chat bot sekarang untuk menyimpan/mengunduh gambar QRIS?');
+                    if (openBot) {
+                        const targetUrl = 'https://t.me/' + (data.bot_username || 'TreadLessBot');
+                        if (window.Telegram && window.Telegram.WebApp && typeof window.Telegram.WebApp.openTelegramLink === 'function') {
+                            window.Telegram.WebApp.openTelegramLink(targetUrl);
+                        } else {
+                            window.open(targetUrl, '_blank');
+                        }
+                    }
+                }, 300);
+
+                setTimeout(resetSendChatButton, 5000);
+            } else {
+                alert('Gagal mengirim ke chat: ' + (data.message || 'Error'));
+                resetSendChatButton();
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Terjadi kesalahan jaringan saat mengirim ke chat bot.');
+            resetSendChatButton();
+        })
+        .finally(() => {
+            if (btn) btn.disabled = false;
+        });
+}
+
+function resetSendChatButton() {
+    const txt = document.getElementById('send-chat-text');
+    const ico = document.getElementById('send-chat-icon');
+    if (txt && ico) {
+        txt.textContent = 'Tampilkan di Chat';
+        ico.className = 'fa-brands fa-telegram text-sm';
+    }
 }
 
 function startQrisTimer(durationSeconds) {

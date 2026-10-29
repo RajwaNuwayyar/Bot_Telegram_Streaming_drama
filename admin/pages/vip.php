@@ -319,6 +319,20 @@ $allTx = getRecentVipPurchases(100, $filter, $search);
                         <span class="text-[10px] text-slate-500">Waktu Pembayaran Sukses:</span>
                         <span id="inv-modal-paid-at" class="text-slate-300 font-semibold">-</span>
                     </div>
+                    <!-- QRIS Actions Container (Download & Salin Link) -->
+                    <div id="inv-modal-qris-container" class="pt-2 mt-2 border-t border-white/5 hidden">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-[10px] text-slate-400">Gambar QRIS:</span>
+                            <div class="flex items-center gap-1.5">
+                                <a id="inv-modal-download-qris" href="#" target="_blank" class="px-2.5 py-1 rounded-lg bg-[#00D0B6]/15 hover:bg-[#00D0B6] text-[#00D0B6] hover:text-slate-950 font-semibold text-[10px] transition inline-flex items-center gap-1">
+                                    <i class="fas fa-download"></i> Download QRIS
+                                </a>
+                                <button type="button" onclick="copyAdminQrisLink()" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-semibold text-[10px] transition inline-flex items-center gap-1">
+                                    <i id="inv-copy-link-icon" class="fas fa-link"></i> <span id="inv-copy-link-text">Salin Link</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -384,7 +398,48 @@ function openInvoiceModal(tx) {
     document.getElementById('inv-modal-created-at').textContent = formatDateTime(tx.created_at);
     document.getElementById('inv-modal-paid-at').textContent = tx.paid_at ? formatDateTime(tx.paid_at) : 'Belum Dibayar (-)';
 
+    // QRIS URL Box & Actions
+    const qrisBox = document.getElementById('inv-modal-qris-container');
+    const downloadLink = document.getElementById('inv-modal-download-qris');
+    if (tx.qris_image_url) {
+        qrisBox.classList.remove('hidden');
+        const orderRef = tx.gateway_ref_id || ('TRX-' + tx.id);
+        downloadLink.href = '../payment/download_qris.php?order_id=' + encodeURIComponent(orderRef) + '&url=' + encodeURIComponent(tx.qris_image_url);
+        resetAdminCopyLinkButton();
+    } else {
+        qrisBox.classList.add('hidden');
+    }
+
     openModal('viewInvoiceModal');
+}
+
+function copyAdminQrisLink() {
+    if (!currentSelectedInvoice || !currentSelectedInvoice.qris_image_url) {
+        showToast('Link QRIS tidak tersedia untuk transaksi ini', 'warning');
+        return;
+    }
+    const qrisUrl = currentSelectedInvoice.qris_image_url;
+    navigator.clipboard.writeText(qrisUrl).then(() => {
+        showToast('Link QRIS berhasil disalin ke clipboard!', 'success');
+        const txt = document.getElementById('inv-copy-link-text');
+        const ico = document.getElementById('inv-copy-link-icon');
+        if (txt && ico) {
+            txt.textContent = 'Tersalin!';
+            ico.className = 'fas fa-check text-emerald-400';
+            setTimeout(resetAdminCopyLinkButton, 2500);
+        }
+    }).catch(() => {
+        showToast('Gagal menyalin link QRIS', 'error');
+    });
+}
+
+function resetAdminCopyLinkButton() {
+    const txt = document.getElementById('inv-copy-link-text');
+    const ico = document.getElementById('inv-copy-link-icon');
+    if (txt && ico) {
+        txt.textContent = 'Salin Link';
+        ico.className = 'fas fa-link';
+    }
 }
 
 function formatDateTime(dateStr) {

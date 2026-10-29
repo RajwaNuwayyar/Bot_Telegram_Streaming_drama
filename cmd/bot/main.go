@@ -28,9 +28,9 @@ func main() {
 	}
 	log.Printf("✅ Database MySQL berhasil dimuat\n")
 
-	// 3. Inisialisasi Layanan Payment Coordinator (QRIS)
-	payCoordinator := payment.NewPaymentCoordinator("", "")
-	log.Println("✅ Payment Coordinator service siap (QRIS Generator & Webhook)")
+	// 3. Inisialisasi Layanan Payment Coordinator (QRIS Midtrans & Generator)
+	payCoordinator := payment.NewPaymentCoordinator("", cfg.MidtransServerKey)
+	log.Println("✅ Payment Coordinator service siap (QRIS Midtrans & Generator)")
 
 	// 4. Periksa BOT_TOKEN
 	if cfg.BotToken == "" || cfg.BotToken == "ISI_DENGAN_TOKEN_BOTFATHER_ANDA" {

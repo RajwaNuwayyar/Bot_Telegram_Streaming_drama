@@ -261,15 +261,19 @@ func (r *MySQLRepo) CreateTransaction(tx *Transaction) error {
 	tx.ID = purchaseID
 
     // Simpan gateway reference di qris_payments
-    _, err = r.db.Exec(`INSERT INTO qris_payments (vip_purchase_id, gateway_name, gateway_ref_id, qris_payload, gateway_status, expired_at) VALUES (?, 'local_qris', ?, ?, ?, ?)`,
-        purchaseID, tx.TrxCode, tx.QRISString, string(tx.Status), tx.ExpiredAt)
+    gatewayName := "midtrans"
+    if tx.QRISURL == "" {
+        gatewayName = "local_qris"
+    }
+    _, err = r.db.Exec(`INSERT INTO qris_payments (vip_purchase_id, gateway_name, gateway_ref_id, qris_payload, qris_image_url, gateway_status, expired_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        purchaseID, gatewayName, tx.TrxCode, tx.QRISString, tx.QRISURL, string(tx.Status), tx.ExpiredAt)
     return err
 }
 
 // GetTransactionByCode
 func (r *MySQLRepo) GetTransactionByCode(trxCode string) (*Transaction, error) {
 	row := r.db.QueryRow(`
-        SELECT v.id, q.gateway_ref_id, u.telegram_user_id, v.plan_id, p.name, v.amount, q.qris_payload, v.status, v.created_at, v.paid_at, q.expired_at 
+        SELECT v.id, q.gateway_ref_id, u.telegram_user_id, v.plan_id, p.name, v.amount, q.qris_payload, q.qris_image_url, v.status, v.created_at, v.paid_at, q.expired_at 
         FROM vip_purchases v
         JOIN qris_payments q ON v.id = q.vip_purchase_id
         JOIN users u ON v.user_id = u.id
@@ -278,11 +282,11 @@ func (r *MySQLRepo) GetTransactionByCode(trxCode string) (*Transaction, error) {
 	
     var tx Transaction
 	var paidAt sql.NullTime
-	var qrisString sql.NullString
+	var qrisString, qrisImageUrl sql.NullString
 	var createdAt, expiredAt sql.NullTime
     var statusStr string
 
-	err := row.Scan(&tx.ID, &tx.TrxCode, &tx.TelegramID, &tx.PlanID, &tx.PlanName, &tx.Amount, &qrisString, &statusStr, &createdAt, &paidAt, &expiredAt)
+	err := row.Scan(&tx.ID, &tx.TrxCode, &tx.TelegramID, &tx.PlanID, &tx.PlanName, &tx.Amount, &qrisString, &qrisImageUrl, &statusStr, &createdAt, &paidAt, &expiredAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -291,6 +295,7 @@ func (r *MySQLRepo) GetTransactionByCode(trxCode string) (*Transaction, error) {
 	}
     tx.Status = TransactionStatus(statusStr)
 	tx.QRISString = qrisString.String
+	tx.QRISURL = qrisImageUrl.String
 	if createdAt.Valid {
 		tx.CreatedAt = createdAt.Time
 	}

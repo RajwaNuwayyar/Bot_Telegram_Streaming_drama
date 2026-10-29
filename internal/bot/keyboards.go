@@ -81,15 +81,34 @@ func VIPPlansKeyboard(plans []database.VIPPlan) tgbotapi.InlineKeyboardMarkup {
 }
 
 // PaymentActionsKeyboard membuat tombol interaksi saat pembayaran QRIS berlangsung
-func PaymentActionsKeyboard(trxCode string) tgbotapi.InlineKeyboardMarkup {
-	return tgbotapi.NewInlineKeyboardMarkup(
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("🔄 Cek Status Pembayaran", fmt.Sprintf("check_pay:%s", trxCode)),
-		),
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("❌ Batalkan Pembayaran", fmt.Sprintf("cancel_pay:%s", trxCode)),
-		),
-	)
+func PaymentActionsKeyboard(trxCode string, qrisURL string, webAppURL string) tgbotapi.InlineKeyboardMarkup {
+	var rows [][]tgbotapi.InlineKeyboardButton
+
+	// Tombol Cek Status Pembayaran
+	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+		tgbotapi.NewInlineKeyboardButtonData("🔄 Cek Status Pembayaran", fmt.Sprintf("check_pay:%s", trxCode)),
+	))
+
+	// Tombol Link Gambar QRIS (langsung ke Midtrans image)
+	if qrisURL != "" {
+		rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonURL("🔗 Buka Link Gambar QRIS", qrisURL),
+		))
+	}
+
+	// Tombol Buka Mini App
+	if webAppURL != "" {
+		rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonURL("📱 Buka Mini App", webAppURL),
+		))
+	}
+
+	// Tombol Batalkan Pembayaran
+	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
+		tgbotapi.NewInlineKeyboardButtonData("❌ Batalkan Pembayaran", fmt.Sprintf("cancel_pay:%s", trxCode)),
+	))
+
+	return tgbotapi.NewInlineKeyboardMarkup(rows...)
 }
 
 // VideoNavigationKeyboard membuat tombol navigasi episode dan link mini app

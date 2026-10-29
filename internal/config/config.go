@@ -19,6 +19,7 @@ type Config struct {
 	DatabasePath      string
 	DatabaseDSN       string
 	PaymentWebhookURL string
+	MidtransServerKey string
 }
 
 func LoadConfig() *Config {
@@ -41,6 +42,7 @@ func LoadConfig() *Config {
 		DatabasePath:      getEnv("DATABASE_PATH", "dramabot.db"),
 		DatabaseDSN:       getEnv("DATABASE_DSN", "root:@tcp(localhost:3306)/bot_drama?parseTime=true&charset=utf8mb4"),
 		PaymentWebhookURL: getEnv("PAYMENT_WEBHOOK_URL", "http://localhost:8080/api/payment/webhook"),
+		MidtransServerKey: getEnv("MIDTRANS_SERVER_KEY", ""),
 	}
 
 	return cfg

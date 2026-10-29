@@ -134,7 +134,7 @@ func (b *Bot) processBuyPlan(telegramID int64, planID int64) {
 	photoConfig := tgbotapi.NewPhoto(telegramID, photoFileBytes)
 	photoConfig.Caption = PaymentInstructionMessage(tx)
 	photoConfig.ParseMode = "Markdown"
-	photoConfig.ReplyMarkup = PaymentActionsKeyboard(tx.TrxCode)
+	photoConfig.ReplyMarkup = PaymentActionsKeyboard(tx.TrxCode, tx.QRISURL, b.cfg.WebAppURL)
 
 	if _, err := b.api.Send(photoConfig); err != nil {
 		log.Printf("[Payment] Gagal mengirim foto QRIS ke user: %v\n", err)
